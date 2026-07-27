@@ -14,7 +14,9 @@ id_*
 
 # Firmware and backups
 firmware/*
+!firmware/
 !firmware/README.md
+!firmware/SHA256SUMS.txt
 *.bin
 *.img
 *.trx
@@ -26,6 +28,7 @@ firmware/*
 *.zip
 *.7z
 *.rar
+!firmware/*.bin
 
 # Local screenshots and source tutorial files
 *.png

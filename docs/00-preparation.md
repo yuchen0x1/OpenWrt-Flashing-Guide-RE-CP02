@@ -12,7 +12,7 @@
 
 ## 需要准备的文件
 
-请自行准备并放在电脑的一个独立目录里，例如 `D:\JD-Cloud RE-CP-02\firmware\`：
+本仓库 `firmware/` 目录已经整理了一份本次使用的文件。你也可以自行准备更新版本或更可信来源的文件，并放在电脑的一个独立目录里，例如 `D:\JD-Cloud RE-CP-02\firmware\`：
 
 ```text
 u-boot-mt7621-68.bin
@@ -26,7 +26,7 @@ openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin  # 可选
 - `squashfs-sysupgrade.bin`：最终刷入的 OpenWrt 固件。
 - `initramfs-kernel.bin`：临时启动用，普通 Web Recovery 刷机通常用不到。
 
-本仓库不包含这些二进制文件。请从可信来源下载，并自行校验 SHA256。
+如果使用仓库自带文件，请先对照 `firmware/SHA256SUMS.txt` 校验 SHA256。如果自行下载，请从可信来源获取，并记录下载地址和校验值。
 
 Windows 下校验文件哈希：
 

@@ -1,0 +1,5 @@
+eed012f12aea3768fff9b303367576f8b6bafd80d7835e4645739f445a26d14c  openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+3624d4aeed6777e733ae472734dd9b84e6714e91f5fdc64723c2dc069c294f3d  openwrt-25.12.0-rc2-无TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+7aae9a00623cc4276f8c7e7e2dbfccb519a8514a4fa4880cc94bd66eb5e50529  openwrt-25.12.1-自用-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+e2585e6bd6177075c98ebdc00f5bf2c30df89d815eba37374f6e07925ca5a2a1  openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin
+805e6fca1cb553c19a1f227b506d2dcbc2dc1a9ed95c3f14373fae42dd4a203b  u-boot-mt7621-68.bin

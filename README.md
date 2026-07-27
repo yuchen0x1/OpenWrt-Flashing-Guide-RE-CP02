@@ -47,7 +47,7 @@
 - v2rayA：`http://192.168.8.1:2017/`，按规则自动直连或代理
 
 ## 相关官方资料
-
+- 源项目https://space.bilibili.com/661919716
 - [OpenWrt Firmware Selector](https://firmware-selector.openwrt.org/)
 - [OpenWrt 25.12 发布说明](https://openwrt.org/releases/25.12/notes-25.12.0)
 - [OpenWrt apk 包管理器说明](https://openwrt.org/docs/guide-user/additional-software/apk)

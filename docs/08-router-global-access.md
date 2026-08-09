@@ -1,20 +1,20 @@
 # 路由器全球分流恢复说明
 
-这份说明对应 2026-08-01 在京东云 RE-CP-02（MT7621）上验证通过的配置：国内流量直连，国外流量通过美国 VLESS Reality 节点。
+这份说明对应 2026-08-01 在京东云 RE-CP-02（MT7621）上验证通过的配置：国内流量直连，其他流量通过一个由你自行维护的 VLESS Reality 节点。
 
 ## 已验证参数
 
 - PassWall：启用
 - Xray：`26.7.28`，`linux/mipsle` soft-float
 - 节点协议：VLESS + TCP + Reality
-- 节点地址：`your-server.example.com:443`
-- Reality SNI：`www.cloudflare.com`
-- Reality Short ID：`a84e`
-- Reality 公钥：`lsrEmlD1lGMvGFYmG-00ZEuzghKx3q3A_-ZhrefmFic`
+- 节点地址：`<YOUR_NODE_HOST>:443`
+- Reality SNI：`<YOUR_REALITY_SNI>`
+- Reality Short ID：`<YOUR_REALITY_SHORT_ID>`
+- Reality 公钥：`<YOUR_REALITY_PUBLIC_KEY>`
 - Flow：`xtls-rprx-vision`
 - PassWall Xray SNI 嗅探：开启（`sniffing_override_dest=1`）
-- 国内出口测试：江苏移动公网地址
-- 国外出口测试：美国服务器 `***REMOVED-SERVER-IP***`
+- 国内出口测试：应显示你的本地运营商出口
+- 其他出口测试：应显示你的节点服务商出口
 
 ## 必须从私密备份补回的字段
 
@@ -33,17 +33,17 @@ uci set passwall.node.protocol='vless'
 uci set passwall.node.type='Xray'
 uci set passwall.node.transport='raw'
 uci set passwall.node.port='443'
-uci set passwall.node.address='your-server.example.com'
+uci set passwall.node.address='<YOUR_NODE_HOST>'
 uci set passwall.node.uuid='<VLESS_UUID>'
 uci set passwall.node.encryption='none'
 uci set passwall.node.flow='xtls-rprx-vision'
 uci set passwall.node.tls='1'
 uci set passwall.node.reality='1'
-uci set passwall.node.tls_serverName='www.cloudflare.com'
+uci set passwall.node.tls_serverName='<YOUR_REALITY_SNI>'
 uci set passwall.node.fingerprint='chrome'
-uci set passwall.node.reality_shortId='a84e'
-uci set passwall.node.reality_spiderX='/728276f105d66e1'
-uci set passwall.node.reality_publicKey='lsrEmlD1lGMvGFYmG-00ZEuzghKx3q3A_-ZhrefmFic'
+uci set passwall.node.reality_shortId='<YOUR_REALITY_SHORT_ID>'
+uci set passwall.node.reality_spiderX='<YOUR_REALITY_SPIDERX>'
+uci set passwall.node.reality_publicKey='<YOUR_REALITY_PUBLIC_KEY>'
 uci set passwall.@global[0].tcp_node='node'
 uci set passwall.@global[0].udp_node='node'
 uci set passwall.@global[0].enabled='1'

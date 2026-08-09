@@ -36,6 +36,10 @@ firmware/*
 *.jpeg
 *.webp
 *.pdf
+!site/assets/
+!site/assets/*.jpg
+!site/assets/*.jpeg
+!site/assets/*.png
 
 # Logs and local outputs
 *.log

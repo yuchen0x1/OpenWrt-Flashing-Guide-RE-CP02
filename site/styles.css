@@ -20,3 +20,38 @@
 
 .scroll-progress { position:fixed; top:0; left:0; height:2px; width:0; z-index:120; background:linear-gradient(90deg,var(--cyan),var(--green)); box-shadow:0 0 12px rgba(120,223,245,.75); }
 .reveal-enabled .section,.reveal-enabled .path-card,.reveal-enabled .firmware-card,.reveal-enabled .doc-card,.reveal-enabled .safety-banner { opacity:0; transform:translateY(16px); transition:opacity .6s ease,transform .6s ease; } .reveal-enabled .section.is-visible,.reveal-enabled .path-card.is-visible,.reveal-enabled .firmware-card.is-visible,.reveal-enabled .doc-card.is-visible,.reveal-enabled .safety-banner.is-visible { opacity:1; transform:none; } .path-card:nth-child(2){transition-delay:.08s}.path-card:nth-child(3){transition-delay:.16s} .firmware-card:nth-child(2){transition-delay:.08s}.firmware-card:nth-child(3){transition-delay:.16s} .doc-card:nth-child(2){transition-delay:.05s}.doc-card:nth-child(3){transition-delay:.1s}.doc-card:nth-child(4){transition-delay:.15s}.doc-card:nth-child(5){transition-delay:.2s}.doc-card:nth-child(6){transition-delay:.25s}.doc-card:nth-child(7){transition-delay:.3s}.doc-card:nth-child(8){transition-delay:.35s}.doc-card:nth-child(9){transition-delay:.4s} .light-mode .scroll-progress { box-shadow:0 0 12px rgba(20,130,150,.45); } @media (prefers-reduced-motion:reduce) { .reveal-enabled .section,.reveal-enabled .path-card,.reveal-enabled .firmware-card,.reveal-enabled .doc-card,.reveal-enabled .safety-banner { opacity:1; transform:none; transition:none; } }
+
+/* --- doc reader: toc / pager / code copy / search snippets --- */
+.modal-body .doc-content { padding-top:6px; }
+.modal-body ul,.modal-body ol { margin:10px 0 14px; padding-left:22px; color:#b7c9cd; font-size:13px; }
+.modal-body ol { list-style:decimal; }
+.modal-body ul li,.modal-body ol li { margin:5px 0; color:#b7c9cd; }
+.modal-body h2 { scroll-margin-top:12px; }
+.modal-body hr { border:0; border-top:1px solid var(--line); margin:22px 0; }
+.code-block { position:relative; margin:12px 0; }
+.code-block pre { margin:0; padding:28px 12px 12px; }
+.code-block .code-copy { position:absolute; top:6px; right:8px; z-index:1; border:1px solid var(--line); border-radius:4px; background:rgba(5,11,14,.7); color:var(--muted); font-size:12px; line-height:1; padding:4px 7px; cursor:pointer; }
+.code-block .code-copy:hover { color:var(--cyan); border-color:var(--line-bright); }
+.doc-toc { margin:4px 0 18px; border:1px solid var(--line); border-radius:6px; background:rgba(120,223,245,.04); }
+.doc-toc summary { cursor:pointer; padding:10px 14px; color:var(--muted); font-size:12px; user-select:none; }
+.doc-toc summary:hover { color:var(--text); }
+.doc-toc-list { display:grid; gap:2px; padding:0 10px 10px; }
+.doc-toc-list button { text-align:left; border:0; background:transparent; color:#9fc9ce; font-size:12px; padding:6px 8px; border-radius:4px; cursor:pointer; }
+.doc-toc-list button:hover { background:rgba(120,223,245,.1); color:var(--text); }
+.doc-pager { display:flex; justify-content:space-between; gap:12px; margin-top:30px; padding-top:14px; border-top:1px solid var(--line); }
+.doc-pager button { display:flex; flex-direction:column; gap:3px; border:0; background:transparent; color:var(--muted); text-align:left; cursor:pointer; padding:8px 4px; max-width:46%; }
+.doc-pager button:hover { color:var(--cyan); }
+.doc-pager .doc-next { text-align:right; align-items:flex-end; }
+.doc-pager small { font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+.doc-pager b { font-size:12px; color:var(--text); }
+.search-result .snippet { display:block; margin-top:5px; color:var(--muted); font:11px/1.55 var(--mono); }
+.search-result mark { background:rgba(120,223,245,.22); color:var(--cyan); border-radius:2px; padding:0 1px; }
+.light-mode .modal-body ul,.light-mode .modal-body ol,.light-mode .modal-body ul li,.light-mode .modal-body ol li { color:#36545b; }
+.light-mode .code-block .code-copy { background:rgba(255,255,255,.8); }
+.light-mode .doc-toc { background:rgba(15,45,53,.04); }
+.light-mode .doc-toc-list button { color:#36545b; }
+.light-mode .search-result mark { background:rgba(20,130,150,.18); color:#0e5a68; }
+@media (max-width:650px) {
+  .doc-pager { flex-direction:column; }
+  .doc-pager button,.doc-pager .doc-next { max-width:100%; text-align:left; align-items:flex-start; }
+}

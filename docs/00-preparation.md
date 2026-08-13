@@ -16,7 +16,7 @@
 
 ```text
 u-boot-mt7621-68.bin
-openwrt-25.12.x-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin  # 可选
 ```
 
@@ -31,14 +31,14 @@ openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin  # 可选
 Windows 下校验文件哈希：
 
 ```powershell
-certutil -hashfile .\openwrt-25.12.x-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
+certutil -hashfile .\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
 certutil -hashfile .\u-boot-mt7621-68.bin SHA256
 ```
 
 Linux / macOS 下校验：
 
 ```sh
-sha256sum openwrt-25.12.x-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+sha256sum openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 sha256sum u-boot-mt7621-68.bin
 ```
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0 - 2026-08-13
+
+- 正式收口 JDCloud RE-CP-02 OpenWrt 指南，保留 9 篇核心文档、固件清单、排障路径和网页阅读入口。
+- 增强网页阅读体验：文档目录、上一篇/下一篇、代码复制、正文搜索结果摘要、滚动进度和渐显动画。
+- 修正准备工作与刷机流程中的推荐固件文件名，统一指向含 TF 卡驱动的 sysupgrade 固件。
+- 补充 eMMC 备份前的挂载提示，并把 SCP 示例改成通用电脑账号和 IP 占位符。
+- 增加 Xray soft-float 资产校验记录，便于恢复 v2rayA 全局分流配置。
+- 增加正式刷机前核对 OpenWrt 官方最新版的安全提醒，避免把仓库实测文件误当作长期最新版。
+
 ## 0.1.1 - 2026-07-28
 
 - Added source credits for the original references and firmware notes.

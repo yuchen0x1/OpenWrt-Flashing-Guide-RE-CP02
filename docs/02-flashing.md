@@ -87,7 +87,7 @@ dd if=/dev/mtd2 of=/tmp/mtd2_Factory.bin
 
 ```sh
 # 如果路由器支持 scp
-scp /tmp/mtd0_Bootloader.bin /tmp/mtd2_Factory.bin user@192.168.68.2:/path/to/backup/
+scp /tmp/mtd0_Bootloader.bin /tmp/mtd2_Factory.bin <YOUR_PC_USER>@<YOUR_PC_IP>:/path/to/backup/
 ```
 
 如果没有 SCP，可以用 stock 固件自带的文件服务、TFTP、Samba 或其他方式取回。总之不要只放在路由器里。
@@ -95,6 +95,9 @@ scp /tmp/mtd0_Bootloader.bin /tmp/mtd2_Factory.bin user@192.168.68.2:/path/to/ba
 可选：备份 eMMC 前部数据。这个文件比较大，确认目标目录空间足够再执行：
 
 ```sh
+# 如果 /mnt/mmcblk0p4 不存在，先挂载可写分区
+mount /dev/mmcblk0p4 /mnt/mmcblk0p4 || true
+ls /mnt/mmcblk0p4
 dd if=/dev/mmcblk0 of=/mnt/mmcblk0p4/backup.img bs=512 count=2508800
 ```
 
@@ -158,7 +161,7 @@ sync
 在 U-Boot Recovery 页面选择并上传：
 
 ```text
-openwrt-25.12.x-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 ```
 
 上传后等待路由器自动写入和重启。不要中途断电。

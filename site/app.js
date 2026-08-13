@@ -17,6 +17,28 @@ const fence = String.fromCharCode(96).repeat(3);
 let lastFocusedElement = null;
 let searchIndexPromise = null;
 let searchRequestId = 0;
+let currentDocIndex = -1;
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+}
+function stripMarkdown(value) {
+  return value
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1');
+}
+function snippetFor(line, term) {
+  const plain = stripMarkdown(line).trim();
+  const index = plain.toLowerCase().indexOf(term);
+  if (index === -1) return escapeHtml(plain.length > 120 ? plain.slice(0, 120) + '…' : plain);
+  const start = Math.max(0, index - 34);
+  const end = Math.min(plain.length, index + term.length + 66);
+  const before = escapeHtml((start > 0 ? '…' : '') + plain.slice(start, index));
+  const hit = '<mark>' + escapeHtml(plain.slice(index, index + term.length)) + '</mark>';
+  const after = escapeHtml(plain.slice(index + term.length, end) + (end < plain.length ? '…' : ''));
+  return before + hit + after;
+}
 
 function normalizeDocPath(path) {
   return path.startsWith('docs/') ? '../' + path : path;
@@ -25,11 +47,8 @@ function isDocPath(path) {
   const normalized = normalizeDocPath(path);
   return normalized.startsWith('../docs/') && normalized.endsWith('.md');
 }
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-}
 function inlineMarkdown(value) {
-  return escapeHtml(value)
+  let html = escapeHtml(value)
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
       const target = href.trim();
       if (isDocPath(target)) {
@@ -39,18 +58,39 @@ function inlineMarkdown(value) {
         return '<a class="text-link" href="' + escapeHtml(target) + '" target="_blank" rel="noreferrer">' + label + ' ↗</a>';
       }
       return label;
-    })
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    });
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  return html;
 }
 function renderMarkdown(source) {
   const lines = source.replace(/\r/g, '').split('\n');
   let html = '';
+  let toc = [];
   let inCode = false;
   let code = [];
+  let listType = null;
+  let section = 0;
+  function closeList() {
+    if (listType) {
+      html += '</' + listType + '>';
+      listType = null;
+    }
+  }
+  function openList(type) {
+    if (listType !== type) {
+      closeList();
+      listType = type;
+      html += '<' + type + '>';
+    }
+  }
   for (const line of lines) {
     if (line.startsWith(fence)) {
       if (inCode) {
-        html += '<pre>' + escapeHtml(code.join('\n')) + '</pre>';
+        const raw = code.join('\n');
+        html += '<div class="code-block"><button class="code-copy" type="button" data-copy="' + escapeHtml(raw) + '" aria-label="复制代码">复制</button><pre><code>' + escapeHtml(raw) + '</code></pre></div>';
+        code = [];
+      } else {
         code = [];
       }
       inCode = !inCode;
@@ -58,23 +98,42 @@ function renderMarkdown(source) {
     }
     if (inCode) {
       code.push(line);
+    } else if (!line.trim()) {
+      closeList();
     } else if (line.startsWith('### ')) {
-      html += '<h3>' + inlineMarkdown(line.slice(4)) + '</h3>';
+      closeList();
+      html += '<h3 id="sec-' + section + '">' + inlineMarkdown(line.slice(4)) + '</h3>';
     } else if (line.startsWith('## ')) {
-      html += '<h2>' + inlineMarkdown(line.slice(3)) + '</h2>';
+      closeList();
+      toc.push({ id: 'sec-' + section, title: stripMarkdown(line.slice(3)) });
+      html += '<h2 id="sec-' + section + '">' + inlineMarkdown(line.slice(3)) + '</h2>';
+      section += 1;
     } else if (line.startsWith('# ')) {
+      closeList();
       html += '<h1>' + inlineMarkdown(line.slice(2)) + '</h1>';
     } else if (line.startsWith('> ')) {
+      closeList();
       html += '<blockquote>' + inlineMarkdown(line.slice(2)) + '</blockquote>';
     } else if (/^[-*] /.test(line)) {
+      openList('ul');
       html += '<li>' + inlineMarkdown(line.slice(2)) + '</li>';
     } else if (/^\d+\. /.test(line)) {
+      openList('ol');
       html += '<li>' + inlineMarkdown(line.replace(/^\d+\. /, '')) + '</li>';
-    } else if (line.trim()) {
+    } else if (line.trim() === '---') {
+      closeList();
+      html += '<hr>';
+    } else {
+      closeList();
       html += '<p>' + inlineMarkdown(line) + '</p>';
     }
   }
-  return html.replace(/(<li>.*<\/li>)+/g, list => '<ul>' + list + '</ul>');
+  closeList();
+  if (inCode && code.length) {
+    const raw = code.join('\n');
+    html += '<div class="code-block"><button class="code-copy" type="button" data-copy="' + escapeHtml(raw) + '" aria-label="复制代码">复制</button><pre><code>' + escapeHtml(raw) + '</code></pre></div>';
+  }
+  return { html, toc };
 }
 function titleFor(path) {
   const item = docs.find(doc => doc[3] === normalizeDocPath(path));
@@ -82,6 +141,7 @@ function titleFor(path) {
 }
 async function openDoc(path) {
   const resolvedPath = normalizeDocPath(path);
+  currentDocIndex = docs.findIndex(doc => doc[3] === resolvedPath);
   lastFocusedElement = document.activeElement;
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
@@ -91,7 +151,25 @@ async function openDoc(path) {
   try {
     const response = await fetch(resolvedPath);
     if (!response.ok) throw new Error('HTTP ' + response.status);
-    $('#modal-body').innerHTML = renderMarkdown(await response.text());
+    const rendered = renderMarkdown(await response.text());
+    const nav = currentDocIndex > -1
+      ? '<nav class="doc-pager" aria-label="文档翻页">'
+        + (currentDocIndex > 0 ? '<button class="doc-prev" type="button" data-doc="' + docs[currentDocIndex - 1][3] + '"><small>上一篇</small><b>' + escapeHtml(docs[currentDocIndex - 1][1]) + '</b></button>' : '<span></span>')
+        + (currentDocIndex < docs.length - 1 ? '<button class="doc-next" type="button" data-doc="' + docs[currentDocIndex + 1][3] + '"><small>下一篇</small><b>' + escapeHtml(docs[currentDocIndex + 1][1]) + '</b></button>' : '<span></span>')
+        + '</nav>'
+      : '';
+    const tocBlock = rendered.toc.length
+      ? '<details class="doc-toc"><summary>目录 · ' + rendered.toc.length + ' 节</summary><div class="doc-toc-list">'
+        + rendered.toc.map(item => '<button type="button" data-toc="' + item.id + '">' + escapeHtml(item.title) + '</button>').join('')
+        + '</div></details>'
+      : '';
+    $('#modal-body').innerHTML = tocBlock + '<div class="doc-content">' + rendered.html + '</div>' + nav;
+    $$('.doc-pager [data-doc]').forEach(button => button.addEventListener('click', () => openDoc(button.dataset.doc)));
+    $$('.doc-toc-list [data-toc]').forEach(button => button.addEventListener('click', () => {
+      const target = $('#' + button.dataset.toc, $('#modal-body'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    $('#modal-body').scrollTop = 0;
   } catch (error) {
     $('#modal-body').innerHTML = '<p>无法读取文档：' + escapeHtml(error.message) + '</p>';
   }
@@ -107,14 +185,32 @@ function showToast(message) {
   toast.classList.add('is-visible');
   setTimeout(() => toast.classList.remove('is-visible'), 1600);
 }
-$('#doc-grid').innerHTML = docs.map(doc => '<button class="doc-card glass-panel" data-doc="' + doc[3] + '" type="button"><span class="doc-index">' + doc[0] + ' / GUIDE</span><h3>' + doc[1] + '</h3><p>' + doc[2] + '</p><span class="doc-arrow">↗</span></button>').join('');
-$$('[data-doc]').forEach(button => button.addEventListener('click', () => openDoc(button.dataset.doc)));
+$('#doc-grid').innerHTML = docs.map(doc => '<article class="doc-card glass-panel" data-doc="' + doc[3] + '" tabindex="0" role="button" aria-label="' + escapeHtml(doc[1]) + '"><span class="doc-number">' + doc[0] + '</span><h3>' + escapeHtml(doc[1]) + '</h3><p>' + escapeHtml(doc[2]) + '</p><span class="doc-link">阅读 <b>↗</b></span></article>').join('');
+$$('[data-doc]').forEach(card => card.addEventListener('click', () => openDoc(card.dataset.doc)));
+$$('[data-doc]').forEach(card => card.addEventListener('keydown', event => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openDoc(card.dataset.doc);
+  }
+}));
 $$('[data-close-modal]').forEach(button => button.addEventListener('click', closeDoc));
 $('#modal-body').addEventListener('click', event => {
   const link = event.target.closest('[data-doc-link]');
   if (!link) return;
   event.preventDefault();
   openDoc(link.dataset.docLink);
+});
+$('#modal-body').addEventListener('click', async event => {
+  const button = event.target.closest('.code-copy');
+  if (!button) return;
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    button.textContent = '已复制';
+    setTimeout(() => { button.textContent = '复制'; }, 1400);
+    showToast('代码已复制');
+  } catch {
+    showToast('复制失败，请手动选择');
+  }
 });
 $$('a[href^="firmware/"]').forEach(link => { link.href = '../' + link.getAttribute('href'); });
 $$('.copy-button').forEach(button => button.addEventListener('click', async event => {
@@ -126,7 +222,7 @@ $$('.copy-button').forEach(button => button.addEventListener('click', async even
     showToast('复制失败，请手动选择');
   }
 }));
-$('#all-docs').addEventListener('click', () => $('#docs').scrollIntoView({ behavior: 'smooth' }));
+$('#all-docs').addEventListener('click', () => openDoc(docs[0][3]));
 $('#theme-toggle').addEventListener('click', () => {
   const light = !document.body.classList.contains('light-mode');
   document.body.classList.toggle('light-mode', light);
@@ -176,11 +272,23 @@ searchInput.addEventListener('input', async () => {
     return;
   }
   const requestId = ++searchRequestId;
-  searchResults.innerHTML = '<p class="search-hint">正在搜索文档正文…</p>';
+  searchResults.innerHTML = '<p class="search-hint">正在搜索…</p>';
   const index = await getSearchIndex();
   if (requestId !== searchRequestId) return;
-  const matches = index.filter(item => (item.doc.join(' ') + ' ' + item.body).toLowerCase().includes(term)).map(item => item.doc);
-  searchResults.innerHTML = matches.length ? matches.map(doc => '<button class="search-result" data-doc="' + doc[3] + '" type="button"><strong>' + doc[1] + '</strong><small>' + doc[3] + ' · ' + doc[2] + '</small></button>').join('') : '<p class="search-hint">没有匹配的章节</p>';
+  const matches = [];
+  for (const item of index) {
+    const lines = item.body.replace(/\r/g, '').split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().includes(term)) {
+        matches.push({ doc: item.doc, snippet: snippetFor(line, term) });
+        if (matches.length >= 24) break;
+      }
+    }
+    if (matches.length >= 24) break;
+  }
+  searchResults.innerHTML = matches.length
+    ? matches.map(match => '<button class="search-result" data-doc="' + match.doc[3] + '" type="button"><strong>' + match.doc[1] + '</strong><span class="snippet">' + match.snippet + '</span></button>').join('')
+    : '<p class="search-hint">没有找到匹配内容</p>';
   $$('.search-result').forEach(element => element.addEventListener('click', () => { closeSearch(); openDoc(element.dataset.doc); }));
 });
 document.addEventListener('keydown', event => {

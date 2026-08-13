@@ -1,6 +1,6 @@
 # Firmware 文件说明
 
-本目录整理本次刷机使用的 U-Boot、initramfs 和 sysupgrade 固件文件。刷机前请自行核对来源、设备型号和 SHA256。
+本目录整理本次刷机使用的 U-Boot、initramfs、sysupgrade 固件和恢复用 Xray 文件。它们是实测留档，不代表官方最新版本；刷机前请自行核对来源、设备型号、官方更新状态和 SHA256。
 
 ## 文件清单
 
@@ -11,6 +11,7 @@
 | `openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | sysupgrade 固件，含 TF 卡驱动 | `eed012f12aea3768fff9b303367576f8b6bafd80d7835e4645739f445a26d14c` |
 | `openwrt-25.12.0-rc2-无TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | sysupgrade 固件，无 TF 卡驱动 | `3624d4aeed6777e733ae472734dd9b84e6714e91f5fdc64723c2dc069c294f3d` |
 | `openwrt-25.12.1-自用-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 自用 sysupgrade 固件 | `7aae9a00623cc4276f8c7e7e2dbfccb519a8514a4fa4880cc94bd66eb5e50529` |
+| `xray-softfloat-26.7.28-linux-mipsle` | v2rayA 恢复使用的 linux/mipsle soft-float Xray 核心 | `0d9ceda10ab70c4ce5caee839fd4eaba5015a27ec566eb31dbb78d66cb857623` |
 
 同一份校验信息也保存在 `SHA256SUMS.txt`。
 

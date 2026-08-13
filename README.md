@@ -4,11 +4,12 @@
 
 > 适用设备：JDCloud RE-CP-02 / LuBan / r4310，MT7621 平台。  
 > 示例系统：OpenWrt 25.12.x，刷机后示例 LAN 地址为 `192.168.8.1`。
+> 项目版本：v1.0.0，最后整理：2026-08-13。
 
 ## 重要提醒
 
 - 刷机、写入 U-Boot、重建 eMMC 分区都有变砖风险。不要在不确认设备型号和固件来源的情况下执行。
-- `firmware/` 目录包含本次整理使用的固件和 U-Boot 文件。刷机前必须自行核对来源、文件名、设备型号和 SHA256。
+- `firmware/` 目录包含本次整理使用的固件和 U-Boot 文件。它们是实测留档，不代表官方最新版本；刷机前必须自行核对来源、文件名、设备型号、官方更新状态和 SHA256。
 - 本仓库不包含 stock 固件下用于开启 Telnet 的辅助代码、私人节点订阅、WiFi 密码、DDNS Token、SSH 密钥或任何个人配置。
 - 扩容章节会删除内置 eMMC 旧分区。只有在确认旧数据可以清空时再执行。
 - v2rayA、代理、DDNS 等功能请遵守所在地法律法规和网络服务条款。
@@ -72,7 +73,7 @@ python -m http.server 18765 --bind 127.0.0.1
 ## 相关官方资料
 
 - [OpenWrt Firmware Selector](https://firmware-selector.openwrt.org/)
-- [OpenWrt 25.12 发布说明](https://openwrt.org/releases/25.12/notes-25.12.0)
+- [OpenWrt 25.12 系列发布页](https://openwrt.org/releases/25.12/start)
 - [OpenWrt apk 包管理器说明](https://openwrt.org/docs/guide-user/additional-software/apk)
 - [OpenWrt SQM 文档](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
 - [v2rayA OpenWrt 安装文档](https://v2raya.org/en/docs/prologue/installation/openwrt/)

@@ -20,7 +20,7 @@
 - 实际联网方式说明：手机热点给电脑上网，电脑网线连路由器，路由器 WAN 口接光猫
 - OpenWrt 首次启动后的常用配置：中文界面、LAN 地址、WiFi、DNS/DoH、广告过滤、UPnP、SQM、dynv6 DDNS、v2rayA 分流
 - eMMC 全量扩容到 overlay 的步骤
-- `firmware/` 中整理的 U-Boot、initramfs 和 sysupgrade 固件文件，以及 SHA256 校验清单
+- `firmware/` 中的固件 SHA256 校验清单；固件二进制体积较大，统一由 [GitHub Releases](https://github.com/yuchen0x1/openwrt-flash-guide/releases) 托管下载
 - Windows 网络诊断脚本和 OpenWrt IPv6 查询小脚本
 - LuCI 总览页 v2rayA 快捷入口示例
 
@@ -43,7 +43,7 @@ python -m http.server 18765 --bind 127.0.0.1
 ## ⚠️ 重要提醒
 
 - 刷机、写入 U-Boot、重建 eMMC 分区都有**变砖风险**，不要在不确认设备型号和固件来源的情况下执行
-- `firmware/` 目录是实测留档，不代表官方最新版本；刷机前必须自行核对来源、文件名、设备型号和 SHA256
+- `firmware/` 的 SHA256 清单是实测留档，不代表官方最新版本；固件二进制请从 [GitHub Releases](https://github.com/yuchen0x1/openwrt-flash-guide/releases) 下载，刷机前必须自行核对来源、文件名、设备型号和 SHA256
 - 本仓库不包含 stock 固件下开启 Telnet 的辅助代码、私人节点订阅、WiFi 密码、DDNS Token、SSH 密钥或任何个人配置
 - 扩容章节会删除内置 eMMC 旧分区，只有在确认旧数据可以清空时再执行
 - v2rayA、代理、DDNS 等功能请遵守所在地法律法规和网络服务条款

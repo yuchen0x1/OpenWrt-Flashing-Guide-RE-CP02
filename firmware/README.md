@@ -1,6 +1,6 @@
 # Firmware 文件说明
 
-本目录整理本次刷机使用的 U-Boot、initramfs、sysupgrade 固件和恢复用 Xray 文件。它们是实测留档，不代表官方最新版本；刷机前请自行核对来源、设备型号、官方更新状态和 SHA256。
+本目录整理本次刷机使用的 U-Boot、initramfs、sysupgrade 固件和恢复用 Xray 文件的 SHA256 清单。固件二进制体积较大，已移出 Git 仓库，统一由 **GitHub Releases** 托管（访问 [Releases](https://github.com/yuchen0x1/openwrt-flash-guide/releases) 下载，作者负责上传，SHA256 与下表一致）。它们是实测留档，不代表官方最新版本；刷机前请自行核对来源、设备型号、官方更新状态和 SHA256。
 
 ## 文件清单
 
@@ -13,7 +13,7 @@
 | `openwrt-25.12.1-自用-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 自用 sysupgrade 固件 | `7aae9a00623cc4276f8c7e7e2dbfccb519a8514a4fa4880cc94bd66eb5e50529` |
 | `xray-softfloat-26.7.28-linux-mipsle` | v2rayA 恢复使用的 linux/mipsle soft-float Xray 核心 | `0d9ceda10ab70c4ce5caee839fd4eaba5015a27ec566eb31dbb78d66cb857623` |
 
-同一份校验信息也保存在 `SHA256SUMS.txt`。
+同一份校验信息也保存在 `SHA256SUMS.txt`。本地留档副本存放在 `_upgrade_backup/openwrt_flash_guide_firmware/`。
 
 下载后请校验 SHA256：
 

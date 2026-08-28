@@ -47,6 +47,7 @@ router-net-diagnose-result.txt
 work/
 outputs/
 tmp/
+.mimosa/
 
 # OS/editor noise
 .DS_Store

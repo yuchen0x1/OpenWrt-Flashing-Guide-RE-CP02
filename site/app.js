@@ -71,6 +71,18 @@ function renderMarkdown(source) {
   let code = [];
   let listType = null;
   let section = 0;
+  let table = null;
+  function closeTable() {
+    if (table) {
+      html += '</tbody></table>';
+      table = null;
+    }
+  }
+  function renderTableRow(line, header = false) {
+    const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+    return '<tr>' + cells.map(cell => '<' + (header ? 'th' : 'td') + '>' + inlineMarkdown(cell) + '</' + (header ? 'th' : 'td') + '>').join('') + '</tr>';
+  }
+
   function closeList() {
     if (listType) {
       html += '</' + listType + '>';
@@ -123,11 +135,25 @@ function renderMarkdown(source) {
     } else if (line.trim() === '---') {
       closeList();
       html += '<hr>';
+    } else if (/^\|.*\|$/.test(line) && /^\|?\s*:?-{3,}/.test(line.replace(/^[|\s]*/, ''))) {
+      if (table) table.headerDone = true;
+    } else if (/^\|.*\|$/.test(line)) {
+      if (!table) {
+        table = { headerDone: false };
+        html += '<table><thead>' + renderTableRow(line, true) + '</thead><tbody>';
+      } else if (!table.headerDone) {
+        table.headerDone = true;
+      } else {
+        html += renderTableRow(line);
+      }
     } else {
+      closeTable();
       closeList();
       html += '<p>' + inlineMarkdown(line) + '</p>';
     }
+
   }
+  closeTable();
   closeList();
   if (inCode && code.length) {
     const raw = code.join('\n');

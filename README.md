@@ -140,15 +140,15 @@ http://127.0.0.1:18765/
 Windows 校验示例：
 
 ```powershell
-certutil -hashfile .\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
-certutil -hashfile .\u-boot-mt7621-68.bin SHA256
+certutil -hashfile .\firmware\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
+certutil -hashfile .\firmware\u-boot-mt7621-68.bin SHA256
 ```
 
 Linux / macOS 校验示例：
 
 ```sh
-sha256sum openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
-sha256sum u-boot-mt7621-68.bin
+sha256sum firmware/openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+sha256sum firmware/u-boot-mt7621-68.bin
 ```
 
 把输出值与下面文件逐项比对：

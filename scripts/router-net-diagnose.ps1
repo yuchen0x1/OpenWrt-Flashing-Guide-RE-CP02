@@ -5,7 +5,7 @@ param(
     [int]$TcpTimeoutMs = 1000
 )
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
 
 function Add-Result {
     param([string]$Text)
@@ -108,6 +108,8 @@ try {
     arp -a | Out-String | Add-Content -Path $ResultPath -Encoding UTF8
 } catch {
     Add-Result "Fatal error: $($_.Exception.Message)"
+    Add-Result "Finished: $(Get-Date -Format o)"
+    exit 1
 }
 
 Add-Result "Finished: $(Get-Date -Format o)"

@@ -31,15 +31,15 @@ openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin  # 可选
 Windows 下校验文件哈希：
 
 ```powershell
-certutil -hashfile .\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
-certutil -hashfile .\u-boot-mt7621-68.bin SHA256
+certutil -hashfile .\firmware\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
+certutil -hashfile .\firmware\u-boot-mt7621-68.bin SHA256
 ```
 
 Linux / macOS 下校验：
 
 ```sh
-sha256sum openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
-sha256sum u-boot-mt7621-68.bin
+sha256sum firmware/openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+sha256sum firmware/u-boot-mt7621-68.bin
 ```
 
 ## 需要准备的工具

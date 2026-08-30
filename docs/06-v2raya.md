@@ -11,12 +11,23 @@ v2rayA 可以在 OpenWrt 上管理 Xray / v2ray 节点，并配合透明代理�
 
 ## 1. 安装
 
+先确认系统版本和包架构。RE-CP-02 官方 25.12 包源对应 `mipsel_24kc`；如果设备不是 25.12 或架构不同，不要直接套用下面命令：
+
+```sh
+cat /etc/openwrt_release
+apk --print-arch
+```
+
+确认是 OpenWrt 25.12、架构为 `mipsel_24kc` 后，再从当前系统配置的官方包源安装：
+
 ```sh
 apk update
 apk add v2raya xray-core luci-app-v2raya
 ```
 
-如果仓库里没有 `luci-app-v2raya`，先安装核心：
+如果 `apk update` 或 `apk add` 报包不存在，先检查 `/etc/apk/repositories.d/distfeeds.list` 是否指向当前 25.12 源，再使用 `apk search v2raya` 检查包名。不要把旧版 `opkg` feed 的包直接混装到 25.12。
+
+如果只需要核心而暂时不需要 LuCI 入口，可以先安装：
 
 ```sh
 apk add v2raya xray-core
@@ -27,6 +38,13 @@ apk add v2raya xray-core
 ```sh
 /etc/init.d/v2raya enable
 /etc/init.d/v2raya restart
+```
+
+检查服务是否启动：
+
+```sh
+/etc/init.d/v2raya status
+netstat -lntp | grep -E '2017|20170|20171|20172'
 ```
 
 访问管理页：
@@ -74,7 +92,7 @@ Subscriptions -> Add
 <YOUR_SUBSCRIPTION_URL>
 ```
 
-保存并更新订阅。不要把订阅链接提交到 GitHub。
+保存并更新订阅。不要把订阅链接提交到公开仓库或公开 issue。
 
 如果是手动节点，按服务商给出的协议类型、地址、端口、UUID、TLS、Reality 等信息逐项填入。
 

@@ -25,5 +25,17 @@ PDF 记录中说明 Telnet 代码“源自网络，添加核心逻辑注释；�
 
 - OpenWrt Firmware Selector: https://firmware-selector.openwrt.org/
 - OpenWrt: https://openwrt.org/
+- OpenWrt RE-CP-02 官方设备页： https://openwrt.org/toh/hwdata/jdcloud/jdcloud_re-cp-02
+- OpenWrt 官方升级说明： https://openwrt.org/docs/guide-user/installation/sysupgrade.cli
+- OpenWrt 官方 owut 说明： https://openwrt.org/docs/guide-user/installation/sysupgrade.owut
+- OpenWrt 25.12 mipsel_24kc 官方包目录： https://downloads.openwrt.org/releases/packages-25.12/mipsel_24kc/
 - v2rayA: https://v2raya.org/
+- v2rayA OpenWrt 包项目： https://github.com/v2rayA/v2raya-openwrt
 - dynv6: https://dynv6.com/
+
+## 社区设备实践
+
+- 1-1-2/OpenWrt-Custom： https://github.com/1-1-2/OpenWrt-Custom
+  - 仓库标注为 MIT License，本文仅参考其 RE-CP-02 设备资料、DTS/分区边界和配置组织方式，不复制其源码或二进制。
+- 1-1-2 的 RE-CP-02 实验补丁： https://gist.github.com/1-1-2/335dbc8e138f39fb8fe6243d424fe476
+  - 该 Gist 用于技术比对和风险提示，不作为本仓库可直接刷写的固件来源。

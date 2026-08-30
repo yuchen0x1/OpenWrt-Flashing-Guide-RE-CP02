@@ -7,7 +7,8 @@ const docs = [
   ['05', '常用服务配置', 'DNS、广告过滤、UPnP、SQM 与 DDNS。', '../docs/05-common-services.md'],
   ['06', 'v2rayA 分流与快捷入口', '代理服务、分流模式与 LuCI 入口。', '../docs/06-v2raya.md'],
   ['07', '常见问题排查', '网络、Recovery、服务与扩容故障。', '../docs/07-troubleshooting.md'],
-  ['08', '路由器全球分流恢复', '私密配置恢复与验证路径。', '../docs/08-router-global-access.md']
+  ['08', '路由器全球分流恢复', '私密配置恢复与验证路径。', '../docs/08-router-global-access.md'],
+  ['09', '官方更新、备份与回滚', '官方固件升级、配置备份与失败恢复。', '../docs/09-official-upgrade.md']
 ];
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -163,7 +164,7 @@ function renderMarkdown(source) {
 }
 function titleFor(path) {
   const item = docs.find(doc => doc[3] === normalizeDocPath(path));
-  return item ? item[1] : '文档';
+  return item ? item[1] : path === '../firmware/README.md' ? 'Firmware 文件说明' : '文档';
 }
 async function openDoc(path) {
   const resolvedPath = normalizeDocPath(path);
@@ -212,7 +213,10 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('is-visible'), 1600);
 }
 $('#doc-grid').innerHTML = docs.map(doc => '<article class="doc-card glass-panel" data-doc="' + doc[3] + '" tabindex="0" role="button" aria-label="' + escapeHtml(doc[1]) + '"><span class="doc-number">' + doc[0] + '</span><h3>' + escapeHtml(doc[1]) + '</h3><p>' + escapeHtml(doc[2]) + '</p><span class="doc-link">阅读 <b>↗</b></span></article>').join('');
-$$('[data-doc]').forEach(card => card.addEventListener('click', () => openDoc(card.dataset.doc)));
+$$('[data-doc]').forEach(card => card.addEventListener('click', event => {
+  if (card.tagName === 'A') event.preventDefault();
+  openDoc(card.dataset.doc);
+}));
 $$('[data-doc]').forEach(card => card.addEventListener('keydown', event => {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
@@ -238,7 +242,6 @@ $('#modal-body').addEventListener('click', async event => {
     showToast('复制失败，请手动选择');
   }
 });
-$$('a[href^="firmware/"]').forEach(link => { link.href = '../' + link.getAttribute('href'); });
 $$('.copy-button').forEach(button => button.addEventListener('click', async event => {
   event.stopPropagation();
   try {

@@ -20,13 +20,14 @@
 2. [获取本仓库](#获取本仓库)
 3. [本地阅读站点](#本地阅读站点)
 4. [动手前核对清单](#动手前核对清单)
-5. [刷机主线：九篇文档按序读](#刷机主线九篇文档按序读)
-6. [固件与校验值](#固件与校验值)
-7. [工具箱：三个实用小工具](#工具箱三个实用小工具)
-8. [遇到问题先查这里](#遇到问题先查这里)
-9. [高频问答](#高频问答)
-10. [参与贡献与维护约定](#参与贡献与维护约定)
-11. [交流与反馈](#交流与反馈)
+5. [刷机主线：十篇文档按序读](#刷机主线十篇文档按序读)
+6. [官方更新与回滚](#官方更新与回滚)
+7. [固件与校验值](#固件与校验值)
+8. [工具箱：三个实用小工具](#工具箱三个实用小工具)
+9. [遇到问题先查这里](#遇到问题先查这里)
+10. [高频问答](#高频问答)
+11. [参与贡献与维护约定](#参与贡献与维护约定)
+12. [交流与反馈](#交流与反馈)
 
 ---
 
@@ -36,7 +37,7 @@
 .
 ├── README.md                         ← 你正在看的项目入口
 ├── index.html                        ← 根入口，访问后跳转到 site/
-├── docs/                             ← 9 篇刷机、配置与排障文档（主线内容）
+├── docs/                             ← 10 篇刷机、配置、升级与排障文档（主线内容）
 ├── site/                             ← 零构建静态阅读站点
 │   ├── index.html
 │   ├── app.js
@@ -47,6 +48,7 @@
 │   └── SHA256SUMS.txt                ← 固件与 Xray 文件的 SHA256 清单（共 6 项）
 ├── scripts/
 │   ├── router-net-diagnose.ps1       ← Windows 网络诊断脚本
+│   ├── project-health-check.ps1      ← 本地站点与项目健康检查
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
 ├── luci/
 │   └── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
@@ -66,7 +68,7 @@
 | 主线文档（docs/） | 准备 → 接线 → Telnet → 备份分区 → 写 U-Boot → Web Recovery → 首次启动 → 网关配置 → 排障，全程图文 |
 | 阅读站点（site/） | 无需构建的纯静态网页：章节弹窗、正文搜索、代码复制、SHA256 复制、浅色模式、移动端适配 |
 | 校验清单（firmware/） | U-Boot、initramfs、sysupgrade 固件与 Xray 文件的 SHA256，用于刷机前逐项比对 |
-| 辅助脚本（scripts/） | Windows 网络诊断 + OpenWrt IPv6 查询，两个即拷即用的小脚本 |
+| 辅助脚本（scripts/） | Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询，三个即拷即用的小脚本 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
@@ -102,6 +104,14 @@ http://127.0.0.1:18765/
 
 **运行环境一句话**：现代浏览器（Chrome / Edge / Firefox 等）+ Python 3（或任意静态文件服务器）。本项目零依赖：没有 npm / pnpm / yarn / pip 依赖，不需要构建，没有环境变量，也不提供 Dockerfile 或 Compose 配置。
 
+启动站点后，可以运行项目健康检查：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\project-health-check.ps1
+```
+
+健康检查默认接受仓库不包含固件二进制的策略，只校验清单格式；拿到全部固件后可加 `-RequireFirmware`，同时验证本地文件是否存在并匹配 SHA256。检查过程只读，不会修改网卡或路由器。
+
 ---
 
 ## 动手前核对清单
@@ -121,7 +131,7 @@ http://127.0.0.1:18765/
 
 ---
 
-## 刷机主线：九篇文档按序读
+## 刷机主线：十篇文档按序读
 
 **请按顺序阅读操作，不要跳过备份与校验步骤：**
 
@@ -136,6 +146,18 @@ http://127.0.0.1:18765/
 | 第 7 步 | [v2rayA 分流与快捷入口](docs/06-v2raya.md) | v2rayA 分流配置与 LuCI 快捷入口 |
 | 第 8 步 | [常见问题排查](docs/07-troubleshooting.md) | 代理影响 LuCI、DDNS 更新失败、Recovery 进不去等 |
 | 第 9 步 | [路由器全球分流恢复](docs/08-router-global-access.md) | 路由器侧分流恢复 |
+| 第 10 步 | [官方更新、备份与回滚](docs/09-official-upgrade.md) | 官方 25.12.5、owut、sysupgrade、备份和回滚 |
+
+---
+
+## 官方更新与回滚
+
+OpenWrt 官方已为 RE-CP-02 提供 25.12.5 稳定镜像。常规升级优先使用官方 `jdcloud_re-cp-02` sysupgrade 文件，并先阅读 [官方更新、备份与回滚](docs/09-official-upgrade.md)。官方镜像的文件名、下载地址和 SHA256 已在该章节记录；社区魔改 U-Boot 或分区布局不得与官方标准镜像混用。
+
+官方设备页和 Firmware Selector：
+
+- https://openwrt.org/toh/hwdata/jdcloud/jdcloud_re-cp-02
+- https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.5
 
 ---
 
@@ -261,7 +283,7 @@ http://<路由器地址>:2017/
 不能。仓库只提供文档、静态阅读站点、校验清单和辅助脚本，不会自动开启 Telnet、写 U-Boot 或刷入 OpenWrt。
 
 **Q：为什么仓库里没有固件 bin 文件？**
-固件和 Xray 二进制体积较大且来源需要单独核对，当前 Git 仓库只保留 `firmware/README.md` 和 `firmware/SHA256SUMS.txt`。刷机前必须自行确认下载来源和 SHA256。
+固件和 Xray 二进制体积较大且来源需要单独核对，当前仓库只保留 `firmware/README.md` 和 `firmware/SHA256SUMS.txt`。刷机前必须自行确认下载来源和 SHA256。
 
 **Q：本地站点打不开章节怎么办？**
 不要直接双击 HTML 文件。在仓库根目录运行 `python -m http.server 18765 --bind 127.0.0.1`，再访问 `http://127.0.0.1:18765/`。

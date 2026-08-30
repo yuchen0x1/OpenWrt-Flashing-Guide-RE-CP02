@@ -1,6 +1,8 @@
 # Firmware 文件说明
 
-本目录整理本次刷机使用的 U-Boot、initramfs、sysupgrade 固件和恢复用 Xray 文件的 SHA256 清单。固件二进制体积较大，已移出 Git 仓库。当前仓库没有可供确认的 GitHub Release，请勿把下载链接或“已验证”状态当作可用来源；刷机前请自行核对来源、设备型号、官方更新状态和 SHA256。
+本目录整理本次刷机使用的 U-Boot、initramfs、sysupgrade 固件和恢复用 Xray 文件的 SHA256 清单。固件二进制体积较大，已移出仓库。第三方历史构建没有在本仓库发布；官方 OpenWrt 镜像请从官方 Downloads 或 Firmware Selector 获取，刷机前请自行核对来源、设备型号、官方更新状态和 SHA256。
+
+OpenWrt 官方已提供 RE-CP-02 的 25.12.5 稳定镜像。官方镜像不放入本仓库，常规更新请优先使用 [官方更新与回滚说明](../docs/09-official-upgrade.md)，并从官方 Downloads 或 Firmware Selector 获取文件。
 
 ## 文件清单
 
@@ -20,6 +22,15 @@
 ```powershell
 certutil -hashfile .\openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin SHA256
 ```
+
+## 官方 25.12.5 基线
+
+| 文件 | 官方下载地址 | SHA256 |
+| --- | --- | --- |
+| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | `https://downloads.openwrt.org/releases/25.12.5/targets/ramips/mt7621/` | `8fd7653aaf8233e0c49ea1f014e9b61c2b3aad90186b53880e9d77c8fdf02dc0` |
+| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | `https://downloads.openwrt.org/releases/25.12.5/targets/ramips/mt7621/` | `b14c9a57d24f71af95b1636b720d3e1d9b95606a8ccc8efa28ddbca4df62fc77` |
+
+这两项来自官方 `sha256sums` 文件的当前记录。下载后仍需再次读取官方清单核对；若版本或哈希发生变化，以官方页面为准。
 
 刷机前确认文件名里包含：
 

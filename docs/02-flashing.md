@@ -158,11 +158,20 @@ sync
 
 ## 8. 刷入 OpenWrt
 
+在上传镜像前，先确认当前 U-Boot 与分区布局属于哪一类：
+
+- 官方标准布局：设备树/分区与 OpenWrt 官方 `jdcloud,re-cp-02` 一致，可使用官方 25.12.5 `sysupgrade.bin`。
+- 第三方 U-Boot 或魔改布局：必须使用与该 U-Boot、固件起始地址和 Factory/MAC 数据布局配套的镜像。
+
+如果无法确认，先停止，不要用官方镜像或其他 MT7621 设备镜像试刷。尤其不要把固件从 `0x30000` 起始的魔改方案与官方标准布局混用；详细边界见 [官方更新、备份与回滚](09-official-upgrade.md)。
+
 在 U-Boot Recovery 页面选择并上传：
 
 ```text
-openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 ```
+
+该文件名仅对应官方标准布局。上传前必须再次确认设备型号并校验官方 SHA256；第三方 U-Boot/魔改分区设备不要照抄这一行。
 
 上传后等待路由器自动写入和重启。不要中途断电。
 

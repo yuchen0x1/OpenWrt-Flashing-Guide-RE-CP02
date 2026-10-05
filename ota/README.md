@@ -22,6 +22,10 @@
 
 ## 路由器端使用
 
+**网页方式（推荐）**：安装 `luci-app-ota-check`（文件在仓库 `luci-app-ota-check/root/` 目录，含 menu.d / acl.d / 视图 JS / ota-check-ui 包装器）后，LuCI 的 **系统 → 固件更新源** 页面提供「检测更新」「下载镜像（不刷写）」「检测 23.05.7」按钮，检测结果直接显示在页面上。该应用后端仍调用 `ota-check`；为安全起见网页不提供一键刷写，刷写依然走 SSH 人工确认。
+
+**命令行方式**：
+
 ```sh
 # 安装（路由器需能访问仓库源；先在电脑上执行）
 scp scripts/ota-check.sh root@192.168.2.1:/usr/bin/ota-check

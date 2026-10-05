@@ -1,0 +1,10 @@
+#!/bin/sh
+# 供 LuCI 网页调用：立即返回，后台运行 ota-check，结果写入 /tmp/ota-check-ui.out。
+# 页面轮询该文件直到出现 __OTA_DONE_<exitcode>__ 标记。
+# 子进程的 stdout/stderr 必须全部重定向走，否则 rpcd 的 file exec
+# 会一直等管道 EOF，网页按钮就永远转圈。
+
+OUT=/tmp/ota-check-ui.out
+: > "$OUT"
+( /usr/bin/ota-check "$@" > "$OUT" 2>&1; echo "__OTA_DONE_$?__" >> "$OUT" ) >/dev/null 2>&1 &
+echo "已启动后台检测"

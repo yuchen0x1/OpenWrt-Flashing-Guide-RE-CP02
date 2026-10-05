@@ -1,0 +1,14 @@
+{
+	"admin/system/ota-check": {
+		"title": "固件更新源",
+		"order": 66,
+		"action": {
+			"type": "view",
+			"path": "ota-check"
+		},
+		"depends": {
+			"acl": [ "ota-check" ],
+			"fs": { "/usr/bin/ota-check": "executable" }
+		}
+	}
+}

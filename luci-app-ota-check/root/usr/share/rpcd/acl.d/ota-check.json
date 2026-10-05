@@ -1,0 +1,26 @@
+{
+	"ota-check": {
+		"description": "Firmware OTA source checker (own update source)",
+		"read": {
+			"ubus": {
+				"file": [ "exec", "list" ]
+			},
+			"file": {
+				"/usr/bin/ota-check": [ "exec" ],
+				"/usr/bin/ota-check-ui": [ "exec" ],
+				"/etc/openwrt_release": [ "read" ],
+				"/tmp/sysinfo/model": [ "read" ],
+				"/tmp/ota-check-ui.out": [ "read" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"file": [ "exec" ]
+			},
+			"file": {
+				"/usr/bin/ota-check": [ "exec" ],
+				"/usr/bin/ota-check-ui": [ "exec" ]
+			}
+		}
+	}
+}

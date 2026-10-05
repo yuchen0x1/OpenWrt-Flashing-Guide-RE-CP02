@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2026-10-05
+
+- 新增 `luci-app-ota-check`：LuCI 系统 → 固件更新源页面，提供检测/下载按钮（后台执行 + 轮询结果，规避 rpcd file exec 长阻塞）。
+- manifest 措辞调整以规避 Gitee raw 内容审查 451（移除 PassWall 关键词）。
+- ota-check.sh 默认更新源地址修正为 main 分支。
+
 ## 1.2.0 - 2026-10-05
 
 - 新增自有固件更新源 `ota/`：manifest.json 记录 RE-CP-02 可用版本（首发收录 ImmortalWrt 24.10.6 与 23.05.7，SHA256 均取自官方 sha256sums 并逐一核对），附发布流程说明。

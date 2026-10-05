@@ -7,12 +7,14 @@
  * 固件更新源检测页：包装 /usr/bin/ota-check（自有更新源，见仓库 ota/README.md）。
  * 检测通过 ota-check-ui 包装器后台执行，页面轮询 /tmp/ota-check-ui.out，
  * 避免 rpcd file exec 长阻塞导致按钮永远转圈。
+ * 更新日志读自 ota-check 每次检测保存的 /tmp/ota-manifest.json。
  * 节点引用在点击时按 id 现场查找，避免主题动画换 DOM 后引用失效。
  * 网页只提供「检测」与「下载校验」；刷写动作保留在 SSH 的 ota-check --flash，
  * 需要人工输入 YES 确认——这是有意的安全边界。
  */
 
 var OUT_FILE = '/tmp/ota-check-ui.out';
+var MANIFEST_FILE = '/tmp/ota-manifest.json';
 
 function setBadge(text, cls) {
 	var b = document.getElementById('ota-check-badge');
@@ -41,6 +43,7 @@ function pollResult(tries) {
 		var m = content.match(/__OTA_DONE_(\d+)__/);
 		if (m) {
 			finishResult(content.replace(/__OTA_DONE_\d+__\n?/g, ''), parseInt(m[1], 10));
+			refreshChangelog();
 			return;
 		}
 		setOut(content);
@@ -72,11 +75,46 @@ function handleRun(ev, args, busyText) {
 	});
 }
 
+function renderChangelog(box, manifestJson) {
+	if (!box) return;
+	var m = null;
+	try { m = JSON.parse(manifestJson || ''); } catch (e) { m = null; }
+	var releases = (m && m.releases) || [];
+	if (!releases.length) {
+		box.innerHTML = '';
+		box.appendChild(E('p', { 'class': 'text-muted' },
+			_('暂无更新日志。点击「检测更新」后，这里会列出更新源上每个版本的变更说明。')));
+		return;
+	}
+	var latest = m.latest || releases[0].version;
+	var items = [];
+	releases.forEach(function(r) {
+		var tags = [];
+		if (r.version === latest) tags.push(E('span', { 'class': 'label label-success' }, _('最新')));
+		if (r.recommended) tags.push(E('span', { 'class': 'label label-warning' }, _('推荐')));
+		var notes = (r.notes || []).map(function(n) { return E('li', {}, n); });
+		items.push(E('li', {}, [
+			E('strong', {}, [r.version, ' '].concat(tags)),
+			r.added ? E('span', { 'style': 'opacity:.55;font-size:12px' }, '　收录于 ' + r.added) : '',
+			notes.length ? E('ul', { 'style': 'margin:6px 0 10px' }, notes) : ''
+		]));
+	});
+	box.innerHTML = '';
+	box.appendChild(E('ul', { 'style': 'list-style:none;padding-left:0' }, items));
+}
+
+function refreshChangelog() {
+	return L.resolveDefault(fs.read(MANIFEST_FILE), '').then(function(txt) {
+		renderChangelog(document.getElementById('ota-changelog'), txt);
+	});
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
 			L.resolveDefault(fs.read('/etc/openwrt_release'), ''),
-			L.resolveDefault(fs.read('/tmp/sysinfo/model'), '')
+			L.resolveDefault(fs.read('/tmp/sysinfo/model'), ''),
+			L.resolveDefault(fs.read(MANIFEST_FILE), '')
 		]);
 	},
 
@@ -93,6 +131,9 @@ return view.extend({
 			'id': 'ota-check-out',
 			'style': 'background:#0b0f14; color:#c9d6dd; padding:14px; border-radius:6px; max-height:420px; overflow:auto; font-size:12px; white-space:pre-wrap'
 		}, '点击「检测更新」从自有更新源拉取版本清单。');
+
+		var changelogBox = E('div', { 'id': 'ota-changelog' });
+		renderChangelog(changelogBox, data[2]);
 
 		var infoTable = E('table', { 'class': 'table' }, [
 			E('tr', {}, [E('td', { 'width': '33%' }, _('设备')), E('td', {}, [model])]),
@@ -130,6 +171,10 @@ return view.extend({
 					}, _('检测 23.05.7（保守分支）'))
 				]),
 				outPre
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('div', { 'class': 'cbi-section-title' }, _('更新日志')),
+				changelogBox
 			])
 		]);
 	},

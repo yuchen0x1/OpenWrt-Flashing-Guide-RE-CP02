@@ -10,7 +10,8 @@
 				"/usr/bin/ota-check-ui": [ "exec" ],
 				"/etc/openwrt_release": [ "read" ],
 				"/tmp/sysinfo/model": [ "read" ],
-				"/tmp/ota-check-ui.out": [ "read" ]
+				"/tmp/ota-check-ui.out": [ "read" ],
+				"/tmp/ota-manifest.json": [ "read" ]
 			}
 		},
 		"write": {

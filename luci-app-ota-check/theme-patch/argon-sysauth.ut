@@ -117,6 +117,75 @@
 	<div class="main-bg" id="main-bg" style="background-image:url({{ bgArry.bgUrl }})"></div>
 	<!-- Image Background End -->
 	{% endif %}
+	<!-- Tech Background Start -->
+	<style>
+		.main-bg { display:none !important; }
+		.login-page { position:relative; background:#05070f; }
+		.login-container { position:relative; z-index:3; }
+		.login-page .footer { position:relative; z-index:3; }
+		.tech-bg { position:fixed; inset:0; z-index:0; overflow:hidden;
+			background:
+				radial-gradient(ellipse at 72% 18%, rgba(94,114,228,.30), transparent 52%),
+				radial-gradient(ellipse at 18% 82%, rgba(23,26,58,.85), transparent 55%),
+				linear-gradient(160deg, #05070f 0%, #0a0f24 45%, #101532 100%); }
+		.tech-grid { position:absolute; left:-25%; right:-25%; bottom:-12%; height:58%;
+			background-image:linear-gradient(rgba(94,114,228,.20) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(94,114,228,.14) 1px, transparent 1px);
+			background-size:46px 46px;
+			transform:perspective(520px) rotateX(62deg);
+			transform-origin:center top;
+			animation:techGrid 14s linear infinite;
+			-webkit-mask-image:linear-gradient(to top, rgba(0,0,0,.9), transparent 85%);
+			mask-image:linear-gradient(to top, rgba(0,0,0,.9), transparent 85%); }
+		@keyframes techGrid { from { background-position:0 0, 0 0; } to { background-position:0 46px, 0 46px; } }
+		.tech-orb { position:absolute; border-radius:50%; filter:blur(70px); opacity:.5; }
+		.tech-orb-a { width:44vw; height:44vw; left:-12vw; top:-16vw;
+			background:radial-gradient(circle, rgba(94,114,228,.5), transparent 65%);
+			animation:orbA 18s ease-in-out infinite alternate; }
+		.tech-orb-b { width:36vw; height:36vw; right:-10vw; bottom:-12vw;
+			background:radial-gradient(circle, rgba(34,211,238,.26), transparent 65%);
+			animation:orbB 22s ease-in-out infinite alternate; }
+		@keyframes orbA { to { transform:translate(6vw, 4vh) scale(1.12); } }
+		@keyframes orbB { to { transform:translate(-5vw, -4vh) scale(1.08); } }
+		.tech-scan { position:absolute; left:0; right:0; height:160px; top:-160px;
+			background:linear-gradient(to bottom, transparent, rgba(120,160,255,.07), transparent);
+			animation:techScan 9s linear infinite; }
+		@keyframes techScan { to { transform:translateY(120vh); } }
+		.tech-particles { position:absolute; inset:0; opacity:.5; }
+		.tech-particles::before, .tech-particles::after { content:""; position:absolute; inset:0;
+			background-image:radial-gradient(rgba(170,190,255,.5) 1px, transparent 1.6px),
+				radial-gradient(rgba(120,140,255,.32) 1px, transparent 1.4px);
+			background-size:220px 220px, 140px 140px;
+			background-position:0 0, 60px 90px;
+			animation:techFloat 26s linear infinite; }
+		@keyframes techFloat { to { background-position:0 -220px, -140px -50px; } }
+		/* 暗色玻璃登录卡 */
+		.login-page .login-container .login-form { background-color:rgba(8,12,28,.62) !important;
+			-webkit-backdrop-filter:blur(18px) saturate(140%); backdrop-filter:blur(18px) saturate(140%);
+			border:1px solid rgba(120,140,255,.18); box-shadow:0 24px 70px rgba(0,0,0,.55); }
+		.login-page .login-container .login-form .brand { color:#dfe6ff; }
+		.login-page .login-container .login-form .brand .icon { background:rgba(94,114,228,.25); border-radius:12px; }
+		.login-page .login-container .login-form input { color:#e6ecff !important;
+			border-bottom:1px solid rgba(150,170,255,.35) !important; }
+		.login-page .login-container .login-form .user-icon,
+		.login-page .login-container .login-form .password-icon,
+		.login-page .login-container .login-form .input-group { color:#9db0ff !important; }
+		.login-page .login-container .login-form .cbi-button-apply,
+		.login-page .login-container .login-form .form-login .cbi-button-apply { background-color:#483d8b !important; }
+		.login-page .login-container .login-form .error { color:#ffb4b4 !important; }
+		.login-page .footer, .login-page .footer a { color:rgba(205,215,245,.55); }
+		@media (prefers-reduced-motion:reduce) {
+			.tech-grid, .tech-orb-a, .tech-orb-b, .tech-scan, .tech-particles::before, .tech-particles::after { animation:none !important; }
+		}
+	</style>
+	<div class="tech-bg" aria-hidden="true">
+		<div class="tech-orb tech-orb-a"></div>
+		<div class="tech-orb tech-orb-b"></div>
+		<div class="tech-grid"></div>
+		<div class="tech-particles"></div>
+		<div class="tech-scan"></div>
+	</div>
+	<!-- Tech Background End -->
 	<!-- Login Container Start -->
 	<div class="login-container">
 		<div class="login-form">

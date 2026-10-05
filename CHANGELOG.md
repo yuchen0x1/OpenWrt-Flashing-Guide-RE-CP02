@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 - 2026-10-05
+
+- 新增自有固件更新源 `ota/`：manifest.json 记录 RE-CP-02 可用版本（首发收录 ImmortalWrt 24.10.6 与 23.05.7，SHA256 均取自官方 sha256sums 并逐一核对），附发布流程说明。
+- 新增 `scripts/ota-check.sh` 路由器端更新检测：只读检测 / 下载校验 / 人工确认刷写三档，内置 RE-CP-02 型号门禁、发行版一致性与 SHA256 钉死，跨大版本刷写强制人工确认。
+- 新增 `scripts/router-post-flash-cleanup.sh` 刷机后清理：停用 ttyd 网页终端与 DDNS 占位配置，默认干跑预览。
+- README 工具箱扩充为五个小工具并同步目录树。
+
+## 1.1.1 - 2026-10-05
+
+- 移除无任何引用的 stock 固件二进制 `Tftpd64/JDCOS.bin`，仓库内容与「不包含固件二进制」策略保持一致；Tftpd64 目录收敛为一份 exe 与一份 ini，删除重复的汉化版子目录。
+- 删除未使用的站点图片 `site/assets/hero-router-alt.jpg`，健康检查同步移除该项；清理 styles.css 中无引用的 `.ambient`、`.doc-index`、`.doc-arrow` 死样式。
+- 官方 25.12.5 sysupgrade 与 initramfs 镜像的 SHA256 并入 `firmware/SHA256SUMS.txt`（现共 8 项），健康检查可覆盖官方升级基线。
+- 健康检查脚本在非 git 目录或缺少 node 时输出 SKIP 而不再 FAIL，zip 下载用户可直接运行。
+- 补充 docs/08 中 Xray 核心的上游版本核对提示，刷新站点首页「最后校验」日期。
+
 ## 1.1.0 - 2026-08-30
 
 - 增加官方 OpenWrt 25.12.5 更新、备份、owut、sysupgrade 与回滚章节。

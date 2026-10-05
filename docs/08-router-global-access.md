@@ -61,3 +61,5 @@ curl https://myip.ipip.net
 ```
 
 仓库中的 `firmware/xray-softfloat-26.7.28-linux-mipsle` 是匹配该路由器的 Xray 核心。原始 `/etc/config` 完整备份只保存在私密位置，不能放入这个公开仓库。
+
+> Xray 核心不会自动更新。建议定期核对 [Xray-core 官方 Releases](https://github.com/XTLS/Xray-core/releases)；出现安全修复时，用对应的 `linux/mipsle` soft-float 版本重新编译替换并重新记录 SHA256。

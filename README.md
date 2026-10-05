@@ -45,8 +45,11 @@
 │   └── assets/                       ← 站点图片资源
 ├── firmware/
 │   ├── README.md                     ← 固件文件用途说明
-│   └── SHA256SUMS.txt                ← 固件与 Xray 文件的 SHA256 清单（共 6 项）
+│   └── SHA256SUMS.txt                ← 固件与 Xray 文件的 SHA256 清单（共 8 项）
+├── ota/                              ← 自有固件更新源（manifest + 发布说明）
 ├── scripts/
+│   ├── ota-check.sh                  ← 路由器端固件更新检测（自有更新源）
+│   ├── router-post-flash-cleanup.sh  ← 刷机后去无用功能清理
 │   ├── router-net-diagnose.ps1       ← Windows 网络诊断脚本
 │   ├── project-health-check.ps1      ← 本地站点与项目健康检查
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
@@ -68,7 +71,8 @@
 | 主线文档（docs/） | 准备 → 接线 → Telnet → 备份分区 → 写 U-Boot → Web Recovery → 首次启动 → 网关配置 → 排障，全程图文 |
 | 阅读站点（site/） | 无需构建的纯静态网页：章节弹窗、正文搜索、代码复制、SHA256 复制、浅色模式、移动端适配 |
 | 校验清单（firmware/） | U-Boot、initramfs、sysupgrade 固件与 Xray 文件的 SHA256，用于刷机前逐项比对 |
-| 辅助脚本（scripts/） | Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询，三个即拷即用的小脚本 |
+| 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
+| 辅助脚本（scripts/） | 更新检测、刷机后清理、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
@@ -163,7 +167,7 @@ OpenWrt 官方已为 RE-CP-02 提供 25.12.5 稳定镜像。常规升级优先�
 
 ## 固件与校验值
 
-`firmware/SHA256SUMS.txt` 当前记录 **6 个文件**的校验值：
+`firmware/SHA256SUMS.txt` 当前记录 **8 个文件**的校验值：
 
 | 文件 | 用途 |
 | --- | --- |
@@ -173,6 +177,8 @@ OpenWrt 官方已为 RE-CP-02 提供 25.12.5 稳定镜像。常规升级优先�
 | `openwrt-25.12.0-rc2-无TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | sysupgrade 固件，无 TF 卡驱动 |
 | `openwrt-25.12.1-自用-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 作者自用 sysupgrade 固件 |
 | `xray-softfloat-26.7.28-linux-mipsle` | v2rayA / PassWall 恢复使用的 linux/mipsle soft-float Xray 核心 |
+| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 官方 25.12.5 sysupgrade 固件，当前首选升级基线 |
+| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | 官方 25.12.5 临时启动用 initramfs |
 
 > ⚠️ **需要人工确认**：本 Git 仓库不含上述二进制文件。刷机前请自行确认下载来源、设备型号、文件名与 SHA256；**不要把其他 MT7621 设备固件混刷到 RE-CP-02**。
 
@@ -194,7 +200,7 @@ sha256sum firmware/u-boot-mt7621-68.bin
 
 ---
 
-## 工具箱：三个实用小工具
+## 工具箱：五个实用小工具
 
 ### 工具一：Windows 网络诊断脚本
 
@@ -256,6 +262,26 @@ http://<路由器地址>:2017/
 ```
 
 如果你的 LAN 地址不是 `192.168.8.1`，请把 `scp` 命令中的 IP 换成实际路由器地址。
+
+### 工具四：自有固件更新源（OTA 检测）
+
+以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6 与 23.05.7，SHA256 取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。详见 [ota/README.md](ota/README.md)。
+
+```sh
+# 路由器上安装后运行
+scp scripts/ota-check.sh root@<路由器IP>:/usr/bin/ota-check
+ssh root@<路由器IP> 'chmod +x /usr/bin/ota-check && ota-check'
+```
+
+### 工具五：刷机后清理（去无用功能）
+
+清理脚本默认干跑预览、加 `--apply` 才执行，当前停用两类无用项：ttyd 网页终端（空密码环境下的纯风险面）和 DDNS 占位配置（`yourhost.example.com` 演示值）。PassWall、UPnP 等在用的服务不会被碰。
+
+```sh
+scp scripts/router-post-flash-cleanup.sh root@<路由器IP>:/tmp/
+ssh root@<路由器IP> 'sh /tmp/router-post-flash-cleanup.sh'          # 先预览
+ssh root@<路由器IP> 'sh /tmp/router-post-flash-cleanup.sh --apply'  # 确认后执行
+```
 
 ---
 

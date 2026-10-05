@@ -9,6 +9,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $base = $BaseUri.TrimEnd('/') + '/'
 $failures = [System.Collections.Generic.List[string]]::new()
 $passes = [System.Collections.Generic.List[string]]::new()
+$skips = [System.Collections.Generic.List[string]]::new()
 
 function Pass {
     param([string]$Message)
@@ -20,6 +21,12 @@ function Fail {
     param([string]$Message)
     $failures.Add($Message)
     Write-Output "FAIL $Message"
+}
+
+function Skip {
+    param([string]$Message)
+    $skips.Add($Message)
+    Write-Output "SKIP $Message"
 }
 
 function Check-HttpResource {
@@ -60,7 +67,6 @@ $httpPaths = @(
     "site/app.js",
     "site/favicon.svg",
     "site/assets/hero-router.jpg",
-    "site/assets/hero-router-alt.jpg",
     "firmware/README.md",
     "firmware/SHA256SUMS.txt"
 )
@@ -109,7 +115,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         }
     }
 } else {
-    Fail "node is required for JavaScript syntax checks"
+    Skip "node not found; JavaScript syntax checks skipped"
 }
 
 $parseErrors = $null
@@ -150,14 +156,18 @@ foreach ($line in $manifestLines) {
     }
 }
 
-$gitOutput = & git -C $root diff --check 2>&1
-if ($LASTEXITCODE -eq 0) {
-    Pass "Git whitespace check"
+if (Test-Path -LiteralPath (Join-Path $root ".git") -PathType Container) {
+    $gitOutput = & git -C $root diff --check 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Pass "Git whitespace check"
+    } else {
+        Fail "Git whitespace check :: $gitOutput"
+    }
 } else {
-    Fail "Git whitespace check :: $gitOutput"
+    Skip "not a git worktree; git whitespace check skipped"
 }
 
-Write-Output "SUMMARY pass=$($passes.Count) fail=$($failures.Count)"
+Write-Output "SUMMARY pass=$($passes.Count) fail=$($failures.Count) skip=$($skips.Count)"
 if ($failures.Count -gt 0) {
     exit 1
 }

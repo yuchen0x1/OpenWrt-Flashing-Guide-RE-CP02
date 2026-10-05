@@ -4,3 +4,5 @@ eed012f12aea3768fff9b303367576f8b6bafd80d7835e4645739f445a26d14c  openwrt-25.12.
 e2585e6bd6177075c98ebdc00f5bf2c30df89d815eba37374f6e07925ca5a2a1  openwrt-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin
 805e6fca1cb553c19a1f227b506d2dcbc2dc1a9ed95c3f14373fae42dd4a203b  u-boot-mt7621-68.bin
 0d9ceda10ab70c4ce5caee839fd4eaba5015a27ec566eb31dbb78d66cb857623  xray-softfloat-26.7.28-linux-mipsle
+8fd7653aaf8233e0c49ea1f014e9b61c2b3aad90186b53880e9d77c8fdf02dc0  openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+b14c9a57d24f71af95b1636b720d3e1d9b95606a8ccc8efa28ddbca4df62fc77  openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin

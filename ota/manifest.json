@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "distro": "ImmortalWrt",
+  "device": "jdcloud_re-cp-02",
+  "device_match": "RE-CP-02",
+  "source_name": "yuchen0x1 RE-CP-02 OTA",
+  "generated": "2026-10-05",
+  "latest": "24.10.6",
+  "releases": [
+    {
+      "version": "24.10.6",
+      "channel": "stable",
+      "recommended": true,
+      "added": "2026-10-05",
+      "kernel": "6.6",
+      "notes": [
+        "推荐目标：ImmortalWrt 24.10 稳定分支最新点版本，内核升级到 6.6",
+        "与 23.05 同 fork，常规配置可保留；刷完后请复核 PassWall、UPnP、WiFi 等服务",
+        "跨大版本（23.05 -> 24.10）刷写建议不保留配置重新初始化，先备份 /etc 配置",
+        "SHA256 来自官方 sha256sums，下载后由 ota-check.sh 逐字节校验"
+      ],
+      "sysupgrade": {
+        "url": "https://downloads.immortalwrt.org/releases/24.10.6/targets/ramips/mt7621/immortalwrt-24.10.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin",
+        "sha256": "c77d1dd19d9aa46a7eefb28c02ef734e4a13930f056824187e8e27f7f9c2ab7d",
+        "size": 11076703
+      },
+      "initramfs": {
+        "url": "https://downloads.immortalwrt.org/releases/24.10.6/targets/ramips/mt7621/immortalwrt-24.10.6-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin",
+        "sha256": "becbafc61e68cd82a1f6de3fc4b440f4ffee33573e6388049554732591fe6976"
+      }
+    },
+    {
+      "version": "23.05.7",
+      "channel": "stable",
+      "recommended": false,
+      "added": "2026-10-05",
+      "kernel": "5.15",
+      "notes": [
+        "最小风险选项：23.05 分支内补丁升级（当前 23.05.4 -> 23.05.7），配置可保留",
+        "适合暂时不想跨大版本、只想收齐分支内安全修复的场景"
+      ],
+      "sysupgrade": {
+        "url": "https://downloads.immortalwrt.org/releases/23.05.7/targets/ramips/mt7621/immortalwrt-23.05.7-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin",
+        "sha256": "38ab5263f3913ce73fc7f57509ade59d8c5e512dfdd31bd682354573314ecf90",
+        "size": 10421343
+      },
+      "initramfs": {
+        "url": "https://downloads.immortalwrt.org/releases/23.05.7/targets/ramips/mt7621/immortalwrt-23.05.7-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin",
+        "sha256": "ddac8dbb8011d48c971c50d3adeee5dd148035b79f1bba86c609650825154db8"
+      }
+    }
+  ]
+}

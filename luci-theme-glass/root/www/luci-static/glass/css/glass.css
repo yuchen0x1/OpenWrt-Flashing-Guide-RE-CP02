@@ -199,7 +199,7 @@ table, .table, .cbi-section-table {
 	border-radius: var(--g-radius) !important;
 	box-shadow: var(--g-shadow) !important;
 	padding: 1rem 1.25rem !important;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .cbi-section-title, .cbi-map-title, .cbi-modal .cbi-section-title {

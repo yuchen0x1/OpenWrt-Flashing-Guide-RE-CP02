@@ -300,6 +300,42 @@ ul.tabs li.active a, ul.tabs li:hover a {
 	color: #fff !important;
 	background: var(--g-glass-strong);
 }
+
+/* PassWall 等应用的白色 tab/行背景归零 */
+.cbi-tabmenu li, ul.tabs li {
+	background: var(--g-glass-strong) !important;
+	border: 1px solid var(--g-border) !important;
+	border-radius: 10px 10px 0 0 !important;
+}
+.cbi-tabmenu li.active, .cbi-tabmenu li:hover, ul.tabs li.active, ul.tabs li:hover {
+	background: var(--g-grad) !important;
+	border-color: transparent !important;
+}
+.cbi-tabmenu li.active a, .cbi-tabmenu li:hover a { color: #fff !important; }
+.cbi-tabcontainer, .cbi-tabcontainer *::before { background-color: transparent !important; }
+.cbi-value, .cbi-value-field, .cbi-value-title { background-color: transparent !important; }
+.cbi-tabcontainer .cbi-value:hover {
+	background-color: rgba(255, 255, 255, .045) !important;
+}
+#modal_overlay .modal .cbi-value { background-color: transparent !important; }
+
+/* PassWall 顶部 tab 条（ul.tabs） */
+ul.tabs {
+	background: transparent !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--g-border) !important;
+}
+ul.tabs li {
+	background: var(--g-glass-strong) !important;
+	border: 1px solid var(--g-border) !important;
+	border-radius: 10px 10px 0 0 !important;
+}
+ul.tabs li.active, ul.tabs li:hover {
+	background: var(--g-grad) !important;
+	border-color: transparent !important;
+}
+ul.tabs li a, ul.tabs li[data-title]::before { color: var(--g-text-dim) !important; }
+ul.tabs li.active a, ul.tabs li:hover a { color: #fff !important; }
 .cbi-tabmenu li.active, ul.tabs li.active {
 	border-bottom: 2px solid transparent !important;
 	border-image: var(--g-grad) 1;

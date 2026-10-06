@@ -4,7 +4,7 @@
   "device": "jdcloud_re-cp-02",
   "device_match": "RE-CP-02",
   "source_name": "yuchen0x1 RE-CP-02 OTA",
-  "generated": "2026-10-05",
+  "generated": "2026-10-06",
   "latest": "24.10.6",
   "releases": [
     {
@@ -27,6 +27,27 @@
       "initramfs": {
         "url": "https://downloads.immortalwrt.org/releases/24.10.6/targets/ramips/mt7621/immortalwrt-24.10.6-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin",
         "sha256": "becbafc61e68cd82a1f6de3fc4b440f4ffee33573e6388049554732591fe6976"
+      }
+    },
+    {
+      "version": "25.12.2",
+      "channel": "stable",
+      "recommended": false,
+      "added": "2026-10-06",
+      "notes": [
+        "可选尝鲜：25.12 新大版本分支当前点版本，自动检测仍以 24.10.6 为准、不会主动提示该版本",
+        "跨大版本（24.10 -> 25.12）刷写建议不保留配置重新初始化（-n），先备份 /etc 配置",
+        "刷完后必须重新核对并重装代理插件、UPnP、WiFi 等服务，内核与用户态全面更新",
+        "SHA256 来自官方 sha256sums，下载后由 ota-check.sh 逐字节校验"
+      ],
+      "sysupgrade": {
+        "url": "https://downloads.immortalwrt.org/releases/25.12.2/targets/ramips/mt7621/immortalwrt-25.12.2-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin",
+        "sha256": "5c79329dc768d98140e457ae5b937c0de0af2804d235e59c39f81689f4851efc",
+        "size": 11665971
+      },
+      "initramfs": {
+        "url": "https://downloads.immortalwrt.org/releases/25.12.2/targets/ramips/mt7621/immortalwrt-25.12.2-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin",
+        "sha256": "fcee1509798902e48ffc5f7264355ebe3bc3cf527410fe303ad1a5ccb0ac603a"
       }
     },
     {

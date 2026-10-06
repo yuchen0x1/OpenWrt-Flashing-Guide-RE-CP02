@@ -143,10 +143,29 @@ return view.extend({
 		]);
 
 		return E([], [
-			E('h2', {}, _('固件更新源')),
+			E('h2', {}, _('更新中心')),
 			E('div', { 'class': 'cbi-map-descr' },
 				_('以本仓库 ota/manifest.json 为版本发布点：检测更新、下载并校验 SHA256。'
 				+ '为安全起见，网页不提供一键刷写——下载校验通过后，请在 SSH 中执行 ota-check --flash 并输入 YES 确认。')),
+			E('div', { 'class': 'cbi-section' }, [
+				E('div', { 'class': 'cbi-section-title' }, _('更新相关入口（整合导航）')),
+				E('div', { 'style': 'display:flex;flex-wrap:wrap;gap:8px' }, [
+					E('a', {
+						'class': 'btn cbi-button cbi-button-action',
+						'href': L.url('admin/system/attendedsysupgrade')
+					}, _('值守式系统升级（在线定制固件）')),
+					' ',
+					E('a', {
+						'class': 'btn cbi-button',
+						'href': L.url('admin/system/backup')
+					}, _('备份与更新（本地刷写）')),
+					' ',
+					E('a', {
+						'class': 'btn cbi-button',
+						'href': L.url('admin/services/plugin-hub')
+					}, _('插件中心'))
+				])
+			]),
 			E('div', { 'class': 'cbi-section' }, [
 				E('div', { 'class': 'cbi-section-title' }, _('系统信息')),
 				infoTable

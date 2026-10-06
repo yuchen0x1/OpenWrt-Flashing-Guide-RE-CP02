@@ -1,7 +1,7 @@
 {
 	"admin/system/ota-check": {
-		"title": "固件更新源",
-		"order": 66,
+		"title": "更新中心",
+		"order": 50,
 		"action": {
 			"type": "view",
 			"path": "ota-check"

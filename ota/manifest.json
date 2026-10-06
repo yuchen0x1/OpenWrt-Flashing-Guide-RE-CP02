@@ -5,7 +5,7 @@
   "device_match": "RE-CP-02",
   "source_name": "yuchen0x1 RE-CP-02 OTA",
   "generated": "2026-10-06",
-  "latest": "24.10.6",
+  "latest": "25.12.2",
   "releases": [
     {
       "version": "24.10.6",

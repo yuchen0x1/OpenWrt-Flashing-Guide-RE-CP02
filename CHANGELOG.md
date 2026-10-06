@@ -1,4 +1,9 @@
-# Changelog
+## 1.2.2 - 2026-10-06
+
+- 新增可选 `luci/passwall-node-list-enhance/`：PassWall 节点列表 URL 测试列扩展为百度、谷歌、GitHub、Instagram 四个固定目标，"四目标测速并排序"按钮按节点数 × 4 任务（最多 8 并发）测速后按四目标最低延迟排序，并提供"删除超标节点"筛选按钮（任一目标 `≥1500 ms`，`1499 ms` 不勾选；缺失/超时/错误不删除，删除保留原生二次确认）。
+- 新增 `luci/passwall-node-list-enhance/backend-patch.md`：上游 `urltest_node` 不支持自定义目标，说明如何给 PassWall/PassWall2 的 controller 与 `test.sh` 套用 `target` 白名单补丁（四个固定标识，不接受任意 URL，未知值回退全局 `url_test_url`）。
+- 增加 `scripts/check-passwall-node-list-enhance.js` 回归测试，覆盖四目标固定 URL、1500ms 等号边界、缺失/超时数据、四倍任务计数、有界并发、分组范围、排序、删除二次确认和后端白名单文档检查。
+- 补丁不包含订阅、节点、密码或 Token；部署采用先下载到临时文件、备份后再替换的流程。
 
 ## 1.2.1 - 2026-10-05
 

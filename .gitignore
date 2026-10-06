@@ -7,6 +7,10 @@
 *token*
 *subscription*
 *node*
+# PassWall node-list patch and its regression test live in tracked paths below
+!luci/passwall-node-list-enhance/
+!luci/passwall-node-list-enhance/**
+!scripts/check-passwall-node-list-enhance.js
 *.key
 *.pem
 *.pub

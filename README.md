@@ -23,7 +23,7 @@
 5. [刷机主线：十篇文档按序读](#刷机主线十篇文档按序读)
 6. [官方更新与回滚](#官方更新与回滚)
 7. [固件与校验值](#固件与校验值)
-8. [工具箱：三个实用小工具](#工具箱三个实用小工具)
+8. [工具箱：六个实用小工具](#工具箱六个实用小工具)
 9. [遇到问题先查这里](#遇到问题先查这里)
 10. [高频问答](#高频问答)
 11. [参与贡献与维护约定](#参与贡献与维护约定)
@@ -52,9 +52,11 @@
 │   ├── router-post-flash-cleanup.sh  ← 刷机后去无用功能清理
 │   ├── router-net-diagnose.ps1       ← Windows 网络诊断脚本
 │   ├── project-health-check.ps1      ← 本地站点与项目健康检查
+│   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
 ├── luci/
-│   └── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
+│   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
+│   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
 ├── Tftpd64/                          ← TFTP 辅助材料
 ├── SECURITY.md                       ← 敏感信息与安全报告说明
 ├── DISCLAIMER.md                     ← 免责声明
@@ -71,6 +73,7 @@
 | 主线文档（docs/） | 准备 → 接线 → Telnet → 备份分区 → 写 U-Boot → Web Recovery → 首次启动 → 网关配置 → 排障，全程图文 |
 | 阅读站点（site/） | 无需构建的纯静态网页：章节弹窗、正文搜索、代码复制、SHA256 复制、浅色模式、移动端适配 |
 | 校验清单（firmware/） | U-Boot、initramfs、sysupgrade 固件与 Xray 文件的 SHA256，用于刷机前逐项比对 |
+| PassWall 节点补丁（luci/passwall-node-list-enhance/） | 可选的节点测速排序与明确超标筛选补丁，不含订阅和节点数据 |
 | 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
 | 辅助脚本（scripts/） | 更新检测、刷机后清理、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
@@ -200,7 +203,7 @@ sha256sum firmware/u-boot-mt7621-68.bin
 
 ---
 
-## 工具箱：五个实用小工具
+## 工具箱：六个实用小工具
 
 ### 工具一：Windows 网络诊断脚本
 
@@ -282,6 +285,10 @@ scp scripts/router-post-flash-cleanup.sh root@<路由器IP>:/tmp/
 ssh root@<路由器IP> 'sh /tmp/router-post-flash-cleanup.sh'          # 先预览
 ssh root@<路由器IP> 'sh /tmp/router-post-flash-cleanup.sh --apply'  # 确认后执行
 ```
+
+### 工具六：PassWall 节点四目标测速排序与筛选
+
+`luci/passwall-node-list-enhance/` 提供一个可选的 LuCI 节点列表模板补丁：URL 测试列扩展为百度、谷歌、GitHub、Instagram 四个固定目标列，“四目标测速并排序”按钮按每节点 4 个请求（最多 8 并发）测完四个目标后，在各分组内按四目标最低延迟排序；“删除超标节点”按钮只在当前分组内勾选任一目标明确达到或超过 `1500 ms` 的节点（`1499 ms` 不勾选）。缺失、超时和错误响应不会自动删除，真正删除仍需原生二次确认。注意：上游 PassWall 的 `urltest_node` 接口不支持自定义测试目标，需按 [backend-patch.md](luci/passwall-node-list-enhance/backend-patch.md) 同步套用后端 `target` 白名单补丁，四个列才能真实工作。补丁不包含订阅、节点或任何私人配置，部署前必须先备份目标模板。详见 [补丁说明](luci/passwall-node-list-enhance/README.md)，行为回归测试为 `node scripts/check-passwall-node-list-enhance.js`。
 
 ---
 

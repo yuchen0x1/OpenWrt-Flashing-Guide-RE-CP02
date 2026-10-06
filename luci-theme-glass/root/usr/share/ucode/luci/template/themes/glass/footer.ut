@@ -1,0 +1,31 @@
+	</div>
+	<footer class="mobile-hide">
+		<div class="footer-content">
+			<a class="luci-link" href="https://github.com/openwrt/luci" target="_blank">Powered by {{ version.luciname }} ({{ version.luciversion }})</a>
+			<span class="footer-separator">|</span>
+			<span class="glass-badge">Glass UI · RE-CP-02 自制主题</span>
+			<span class="footer-separator">|</span>
+			<a class="luci-link" href="{{ version.disturl }}" target="_blank">{{ version.distname }} {{ version.distversion }}-{{ version.distrevision }}</a>
+			<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+		</div>
+	</footer>
+	</div>
+</div>
+<script>
+	var luciLocation = {{ ctx.path }};
+	var winHeight = window.innerHeight;
+	window.addEventListener('resize', function () {
+		var winWidth = window.innerWidth;
+		if (winWidth < 600) {
+			var newHeight = window.innerHeight;
+			var keyboradHeight = newHeight - winHeight;
+			var ftcElement = document.querySelector(".ftc");
+			if (ftcElement) {
+				ftcElement.style.bottom = (keyboradHeight + 30) + "px";
+			}
+		}
+	});
+</script>
+<script type="text/javascript">L.require('menu-argon')</script>
+</body>
+</html>

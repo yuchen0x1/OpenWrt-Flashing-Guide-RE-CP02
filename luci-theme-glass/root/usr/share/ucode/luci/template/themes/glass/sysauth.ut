@@ -1,0 +1,50 @@
+{%
+	import { cursor } from 'uci';
+
+	const boardinfo = ubus.call("system", "board");
+	const hostname = striptags(boardinfo?.hostname ?? '?');
+-%}
+{%
+	include("themes/" + theme + "/out_header_login");
+-%}
+<!-- Glass 登录页 -->
+<div class="login-page">
+	<div class="login-orb orb-1" aria-hidden="true"></div>
+	<div class="login-orb orb-2" aria-hidden="true"></div>
+	<div class="login-orb orb-3" aria-hidden="true"></div>
+
+	<div class="login-container">
+		<div class="login-form">
+			<a class="brand" href="/">
+				<span class="brand-mark">◇</span>
+				<span class="brand-text">{{ hostname }}</span>
+				<span class="brand-sub">GLASS PANEL</span>
+			</a>
+
+			<form class="form-login" method="post" action="{{ http.getenv("REQUEST_URI") }}">
+				{%- if (fuser): %}
+				<div class="errorbox">{{ _('Invalid username and/or password! Please try again.') }}</div>
+				{% endif -%}
+
+				<div class="input-container">
+					<div class="input-group user-icon">
+						<input class="cbi-input-user" id="cbi-input-user" type="text" name="luci_username" value="{{ entityencode(duser, true) }}" placeholder="root" />
+						<label class="border" for="cbi-input-user"></label>
+					</div>
+					<div class="input-group pass-icon">
+						<input class="cbi-input-password" id="cbi-input-password" type="password" name="luci_password" placeholder="········" />
+						<label class="border" for="cbi-input-password"></label>
+					</div>
+				</div>
+				<div>
+					<input type="submit" value="{{ _('Log in') }}" class="cbi-button cbi-button-apply" />
+				</div>
+			</form>
+
+			<script type="text/javascript">//<![CDATA[
+				var input = document.getElementsByName('luci_password')[0];
+				if (input)
+					input.focus();
+			//]]></script>
+
+	{% include("themes/" + theme + "/footer_login") %}

@@ -1,0 +1,26 @@
+{%
+	import { cursor } from 'uci';
+
+	const boardinfo = ubus.call("system", "board");
+	const hostname = striptags(boardinfo?.hostname ?? '?');
+
+	http.prepare_content('text/html; charset=UTF-8');
+-%}
+<!DOCTYPE html>
+<html lang="{{ dispatcher.lang }}">
+
+<head>
+	{% include("themes/" + theme + "/head_meta", { hostname: hostname, node: node, media: media }) %}
+	<link rel="stylesheet" href="/luci-static/argon/css/cascade.css?v=2.4.7">
+	<link rel="stylesheet" href="{{ media }}/css/glass.css?v=1">
+	{% if (node?.css): %}
+	<link rel="stylesheet" href="{{ resource }}/{{ node.css}}">
+	{% endif -%}
+	{% if (css): %}
+	<style title="text/css">
+		{{ css }}
+	</style>
+	{% endif -%}
+</head>
+
+<body>

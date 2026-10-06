@@ -1,0 +1,14 @@
+</div>
+<footer>
+	<div>
+		<a class="luci-link" href="https://github.com/openwrt/luci" target="_blank">Powered by {{ version.luciname }} ({{ version.luciversion }})</a>
+		<span class="glass-badge">Glass UI · RE-CP-02 自制主题</span>
+		<a class="luci-link" href="{{ version.disturl }}" target="_blank">{{ version.distname }} {{ version.distversion }}-{{ version.distrevision }}</a>
+	</div>
+</footer>
+</div>
+<script>
+	var luciLocation = {{ ctx.path }};
+</script>
+</body>
+</html>

@@ -165,13 +165,21 @@ sync
 
 如果无法确认，先停止，不要用官方镜像或其他 MT7621 设备镜像试刷。尤其不要把固件从 `0x30000` 起始的魔改方案与官方标准布局混用；详细边界见 [官方更新、备份与回滚](09-official-upgrade.md)。
 
-在 U-Boot Recovery 页面选择并上传：
+在 U-Boot Recovery 页面选择并上传，镜像按当前设备布局二选一。
+
+走本指南主线（已按第 6 步写入 `u-boot-mt7621-68.bin` 第三方 U-Boot）的设备，使用 [准备工作](00-preparation.md) 里准备的配套镜像：
+
+```text
+openwrt-25.12.0-rc2-含TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+```
+
+官方标准布局（未刷第三方 U-Boot）的设备，使用官方 25.12.5 镜像：
 
 ```text
 openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 ```
 
-该文件名仅对应官方标准布局。上传前必须再次确认设备型号并校验官方 SHA256；第三方 U-Boot/魔改分区设备不要照抄这一行。
+两类镜像不可混用。上传前必须再次确认设备型号并校验对应 SHA256；第三方 U-Boot/魔改分区设备不要照抄官方这一行。
 
 上传后等待路由器自动写入和重启。不要中途断电。
 

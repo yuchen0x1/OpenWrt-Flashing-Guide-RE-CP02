@@ -4,8 +4,8 @@
   "device": "jdcloud_re-cp-02",
   "device_match": "RE-CP-02",
   "source_name": "yuchen0x1 RE-CP-02 OTA",
-  "generated": "2026-10-06",
-  "latest": "25.12.2",
+  "generated": "2026-10-07",
+  "latest": "24.10.6",
   "releases": [
     {
       "version": "24.10.6",
@@ -35,7 +35,7 @@
       "recommended": false,
       "added": "2026-10-06",
       "notes": [
-        "可选尝鲜：25.12 新大版本分支当前点版本，已设为更新源 latest 用于升级链路实测",
+        "可选尝鲜：25.12 新大版本分支当前点版本，不参与自动检测提示，需 ota-check --version 25.12.2 手动检测",
         "跨大版本（24.10 -> 25.12）刷写建议不保留配置重新初始化（-n），先备份 /etc 配置",
         "刷完后必须重新核对并重装代理插件、UPnP、WiFi 等服务，内核与用户态全面更新",
         "SHA256 来自官方 sha256sums，下载后由 ota-check.sh 逐字节校验"

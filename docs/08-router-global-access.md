@@ -60,6 +60,6 @@ curl -x socks5h://127.0.0.1:1070 https://api.openai.com/v1/models -I
 curl https://myip.ipip.net
 ```
 
-仓库中的 `firmware/xray-softfloat-26.7.28-linux-mipsle` 是匹配该路由器的 Xray 核心。原始 `/etc/config` 完整备份只保存在私密位置，不能放入这个公开仓库。
+仓库不收录二进制文件，但 `firmware/SHA256SUMS.txt` 里记录了 `xray-softfloat-26.7.28-linux-mipsle` 的校验值——这是匹配该路由器的 Xray 核心（linux/mipsle soft-float），需按校验值自行从可信来源获取。原始 `/etc/config` 完整备份只保存在私密位置，不能放入这个公开仓库。
 
 > Xray 核心不会自动更新。建议定期核对 [Xray-core 官方 Releases](https://github.com/XTLS/Xray-core/releases)；出现安全修复时，用对应的 `linux/mipsle` soft-float 版本重新编译替换并重新记录 SHA256。

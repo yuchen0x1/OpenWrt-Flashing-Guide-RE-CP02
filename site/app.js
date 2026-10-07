@@ -112,28 +112,36 @@ function renderMarkdown(source) {
     if (inCode) {
       code.push(line);
     } else if (!line.trim()) {
+      closeTable();
       closeList();
     } else if (line.startsWith('### ')) {
+      closeTable();
       closeList();
-      html += '<h3 id="sec-' + section + '">' + inlineMarkdown(line.slice(4)) + '</h3>';
+      html += '<h3>' + inlineMarkdown(line.slice(4)) + '</h3>';
     } else if (line.startsWith('## ')) {
+      closeTable();
       closeList();
       toc.push({ id: 'sec-' + section, title: stripMarkdown(line.slice(3)) });
       html += '<h2 id="sec-' + section + '">' + inlineMarkdown(line.slice(3)) + '</h2>';
       section += 1;
     } else if (line.startsWith('# ')) {
+      closeTable();
       closeList();
       html += '<h1>' + inlineMarkdown(line.slice(2)) + '</h1>';
     } else if (line.startsWith('> ')) {
+      closeTable();
       closeList();
       html += '<blockquote>' + inlineMarkdown(line.slice(2)) + '</blockquote>';
     } else if (/^[-*] /.test(line)) {
+      closeTable();
       openList('ul');
       html += '<li>' + inlineMarkdown(line.slice(2)) + '</li>';
     } else if (/^\d+\. /.test(line)) {
+      closeTable();
       openList('ol');
       html += '<li>' + inlineMarkdown(line.replace(/^\d+\. /, '')) + '</li>';
     } else if (line.trim() === '---') {
+      closeTable();
       closeList();
       html += '<hr>';
     } else if (/^\|.*\|$/.test(line) && /^\|?\s*:?-{3,}/.test(line.replace(/^[|\s]*/, ''))) {
@@ -255,11 +263,20 @@ $('#all-docs').addEventListener('click', () => openDoc(docs[0][3]));
 $('#theme-toggle').addEventListener('click', () => {
   const light = !document.body.classList.contains('light-mode');
   document.body.classList.toggle('light-mode', light);
-  localStorage.setItem('re-cp-02-theme', light ? 'light' : 'dark');
+  try {
+    localStorage.setItem('re-cp-02-theme', light ? 'light' : 'dark');
+  } catch {
+    // 隐私模式/禁用存储下无法持久化，模式仅在本次会话生效
+  }
   $('#theme-toggle').setAttribute('aria-pressed', String(light));
   showToast(light ? '已切换浅色模式' : '已切换深色模式');
 });
-const savedTheme = localStorage.getItem('re-cp-02-theme');
+let savedTheme = null;
+try {
+  savedTheme = localStorage.getItem('re-cp-02-theme');
+} catch {
+  // 同上：存储不可用时按默认深色继续
+}
 if (savedTheme === 'light') {
   document.body.classList.add('light-mode');
   $('#theme-toggle').setAttribute('aria-pressed', 'true');

@@ -1,0 +1,10 @@
+{
+	"admin/services/plugin-hub": {
+		"title": "插件中心",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "plugin-hub/dashboard"
+		}
+	}
+}

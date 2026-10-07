@@ -46,10 +46,11 @@ PowerShell 示例，需要管理员权限，网卡名按你的电脑修改：
 New-NetIPAddress -InterfaceAlias "以太网" -IPAddress 192.168.68.2 -PrefixLength 24
 ```
 
-如果已经设置错，可以改回 DHCP：
+如果已经设置错，可以改回 DHCP。注意 `New-NetIPAddress` 添加的手动地址不会被重新开启 DHCP 自动移除，要显式删掉：
 
 ```powershell
 Set-NetIPInterface -InterfaceAlias "以太网" -Dhcp Enabled
+Remove-NetIPAddress -InterfaceAlias "以太网" -IPAddress 192.168.68.2 -Confirm:$false -ErrorAction SilentlyContinue
 Set-DnsClientServerAddress -InterfaceAlias "以太网" -ResetServerAddresses
 ```
 

@@ -17,8 +17,21 @@
 
 set -u
 
+# 用法文本取自文件头部注释块，按注释块边界截取
+usage() {
+  sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
+  exit 0
+}
+
 APPLY=0
-[ "${1:-}" = "--apply" ] && APPLY=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --apply) APPLY=1 ;;
+    -h|--help) usage ;;
+    *) echo "未知参数: $1（-h 查看用法）" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 DISABLE_SERVICES="${DISABLE_SERVICES:-ttyd}"
 
@@ -40,28 +53,36 @@ for svc in $DISABLE_SERVICES; do
   if [ -x "/etc/init.d/$svc" ]; then
     run /etc/init.d/$svc stop
     run /etc/init.d/$svc disable
-    log "服务 $svc 已停用"
+    if [ "$APPLY" = "1" ]; then
+      log "服务 $svc 已停用"
+    else
+      log "（预览）服务 $svc 将被停用（stop + disable）"
+    fi
   else
     log "服务 $svc 不存在，跳过"
   fi
 done
 
 # 2. 清理 DDNS 占位配置（整节删除）
+# 决策（删完后是否还有真实配置、要不要停服务）与日志在干跑和执行两种模式下都要输出，
+# 因此这里不把判断包在 APPLY 分支里，只把「改动类动作」交给 run() 处理。
 if command -v uci >/dev/null 2>&1 && uci -q show ddns >/dev/null 2>&1; then
-  uci -q show ddns | grep -E "(lookup_host|domain)='yourhost\.example\.com'" | cut -d. -f1-2 | sort -u | while IFS= read -r section; do
+  PLACEHOLDER_SECTIONS=$(uci -q show ddns | grep -E "(lookup_host|domain)='yourhost\.example\.com'" | cut -d. -f1-2 | sort -u)
+  _ph_count=$(printf '%s\n' "$PLACEHOLDER_SECTIONS" | grep -c .)
+  _ddns_count=$(uci -q show ddns | grep -c "=ddns")
+  printf '%s\n' "$PLACEHOLDER_SECTIONS" | while IFS= read -r section; do
     [ -n "$section" ] || continue
     log "发现 DDNS 占位配置 section: $section"
     run uci -q delete "$section"
   done
-  if [ "$APPLY" = "1" ]; then
-    if uci -q show ddns 2>/dev/null | grep -q "=ddns"; then
-      log "仍有真实 DDNS 配置，保留服务"
-    else
-      run /etc/init.d/ddns disable
-      log "DDNS 已无任何配置，服务停用"
-    fi
-    run uci commit ddns
+  _remain=$((_ddns_count - _ph_count))
+  if [ "$_remain" -gt 0 ]; then
+    log "删除占位后仍有 $_remain 个真实 DDNS 配置，保留 ddns 服务"
+  else
+    run /etc/init.d/ddns disable
+    log "DDNS 已无任何真实配置，服务将随本次执行停用"
   fi
+  run uci commit ddns
 else
   log "无 ddns 配置或无 uci，跳过"
 fi
@@ -70,7 +91,11 @@ fi
 log "---- 当前状态 ----"
 log "固件: $(cat /etc/openwrt_release 2>/dev/null | grep DISTRIB_RELEASE || echo unknown)"
 log "模型: $(cat /tmp/sysinfo/model 2>/dev/null || echo unknown)"
-df -h /overlay 2>/dev/null | tail -n 1 | while IFS= read -r l; do log "overlay: $l"; done
+if df -h /overlay >/dev/null 2>&1; then
+  df -h /overlay | tail -n 1 | while IFS= read -r l; do log "overlay: $l"; done
+else
+  log "overlay: 读取失败（恢复模式或 /overlay 未挂载？请手动执行 df -h 检查分区占用）"
+fi
 
 if [ "$APPLY" != "1" ]; then
   log "预览结束。确认后执行: sh $0 --apply"

@@ -169,8 +169,9 @@ IPv6 可单独建一个 `dynv6_v6` 服务，把 `ip_network` 和 `interface` 改
 logread -e ddns
 ```
 
-获取当前 WAN6 IPv6 可用本仓库脚本：
+获取当前 WAN6 IPv6 可用本仓库脚本（仓库根目录先传到路由器，路由器上没有 `scripts/` 目录）：
 
 ```sh
-sh scripts/get-wan6-ip.sh
+scp scripts/get-wan6-ip.sh root@<ROUTER_IP>:/tmp/
+ssh root@<ROUTER_IP> 'sh /tmp/get-wan6-ip.sh'
 ```

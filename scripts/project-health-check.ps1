@@ -105,29 +105,44 @@ if ((@($appDocs | Sort-Object) -join "`n") -eq (@($diskDocs | Sort-Object) -join
     Fail "site/app.js document mapping does not match docs/*.md"
 }
 
+# JS list is collected by directory glob, so newly added scripts are covered without editing this file.
+# Inline scripts in *.htm/*.html embed LuCI template tags (<% %>) and cannot be fed to node --check;
+# the passwall node-list enhance block is verified separately by scripts/check-passwall-node-list-enhance.js.
+$jsFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.js" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+    Sort-Object FullName)
 if (Get-Command node -ErrorAction SilentlyContinue) {
-    foreach ($script in @("site/app.js", "luci/05_v2raya.js")) {
-        $output = & node --check (Join-Path $root $script) 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Pass "Node syntax $script"
+    foreach ($file in $jsFiles) {
+        $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
+        # PS 5.1 下原生命令的 stderr 经 2>&1 会被包装成 ErrorRecord，EAP=Stop 时直接终止脚本，
+        # 而 node --check 恰好在语法失败时写 stderr；局部降级为 Continue，让失败走 FAIL 分支
+        $ErrorActionPreference = "Continue"
+        $output = (& node --check $file.FullName 2>&1 | Out-String).TrimEnd()
+        $nodeExit = $LASTEXITCODE
+        $ErrorActionPreference = "Stop"
+        if ($nodeExit -eq 0) {
+            Pass "Node syntax $relative"
         } else {
-            Fail "Node syntax $script :: $output"
+            Fail "Node syntax $relative :: $output"
         }
     }
 } else {
-    Skip "node not found; JavaScript syntax checks skipped"
+    Skip "node not found; JavaScript syntax checks skipped ($($jsFiles.Count) files)"
 }
 
-$parseErrors = $null
-[System.Management.Automation.Language.Parser]::ParseFile(
-    (Join-Path $root "scripts/router-net-diagnose.ps1"),
-    [ref]$null,
-    [ref]$parseErrors
-) | Out-Null
-if ($parseErrors.Count -eq 0) {
-    Pass "PowerShell syntax scripts/router-net-diagnose.ps1"
-} else {
-    Fail "PowerShell syntax scripts/router-net-diagnose.ps1 :: $($parseErrors[0].Message)"
+# PowerShell list is collected by directory glob as well, including this script itself.
+$psFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.ps1" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+    Sort-Object FullName)
+foreach ($file in $psFiles) {
+    $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$parseErrors) | Out-Null
+    if ($parseErrors.Count -eq 0) {
+        Pass "PowerShell syntax $relative"
+    } else {
+        Fail "PowerShell syntax $relative :: $($parseErrors[0].Message)"
+    }
 }
 
 $manifestPath = Join-Path $root "firmware/SHA256SUMS.txt"
@@ -144,7 +159,7 @@ foreach ($line in $manifestLines) {
         if ($RequireFirmware) {
             Fail "Missing firmware: $firmwareName"
         } else {
-            Pass "Firmware absent by repository policy: $firmwareName"
+            Skip "Firmware absent by repository policy: $firmwareName"
         }
         continue
     }
@@ -157,8 +172,12 @@ foreach ($line in $manifestLines) {
 }
 
 if (Test-Path -LiteralPath (Join-Path $root ".git") -PathType Container) {
-    $gitOutput = & git -C $root diff --check 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    # 同上：git 的 stderr 在 EAP=Stop 下经 2>&1 会终止脚本，局部降级收集输出
+    $ErrorActionPreference = "Continue"
+    $gitOutput = (& git -C $root diff --check 2>&1 | Out-String).TrimEnd()
+    $gitExit = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($gitExit -eq 0) {
         Pass "Git whitespace check"
     } else {
         Fail "Git whitespace check :: $gitOutput"

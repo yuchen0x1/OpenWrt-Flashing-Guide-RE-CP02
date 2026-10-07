@@ -50,14 +50,14 @@ sysupgrade --create-backup /tmp/re-cp-02-backup.tar.gz
 电脑上执行：
 
 ```sh
-scp root@<ROUTER_IP>:/tmp/re-cp-02-backup.tar.gz .\re-cp-02-backup.tar.gz
+scp root@<ROUTER_IP>:/tmp/re-cp-02-backup.tar.gz ./re-cp-02-backup.tar.gz
 ```
 
 同时记录已安装软件，便于全新刷写后恢复：
 
 ```sh
 apk info -vv > /tmp/re-cp-02-packages.txt
-scp root@<ROUTER_IP>:/tmp/re-cp-02-packages.txt .\re-cp-02-packages.txt
+scp root@<ROUTER_IP>:/tmp/re-cp-02-packages.txt ./re-cp-02-packages.txt
 ```
 
 备份中可能包含密码哈希、密钥和网络配置。不要把备份文件提交到公开仓库。

@@ -2,6 +2,9 @@ param(
     [string]$AdapterName = "",
     [string]$ResultPath = ".\router-net-diagnose-result.txt",
     [switch]$ConfigureStaticIPs,
+    # Removes the probe addresses added by -ConfigureStaticIPs. Omitted by default, so the
+    # existing behaviour is unchanged; -ConfigureStaticIPs and -RemoveStaticIPs are exclusive.
+    [switch]$RemoveStaticIPs,
     [int]$TcpTimeoutMs = 1000
 )
 
@@ -34,7 +37,12 @@ function Test-TcpPort {
     }
 }
 
-Set-Content -Path $ResultPath -Value "Started: $(Get-Date -Format o)" -Encoding UTF8
+try {
+    Set-Content -Path $ResultPath -Value "Started: $(Get-Date -Format o)" -Encoding UTF8
+} catch {
+    Write-Host "Cannot write result file '$ResultPath': $($_.Exception.Message)"
+    exit 2
+}
 
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -60,11 +68,17 @@ try {
 
     Add-Result "Adapter: Name=$($adapter.Name); ifIndex=$($adapter.ifIndex); Status=$($adapter.Status); LinkSpeed=$($adapter.LinkSpeed)"
 
-    if ($ConfigureStaticIPs) {
+    # Probe addresses shared by -ConfigureStaticIPs and -RemoveStaticIPs.
+    # 192.168.1.2 and 192.168.8.2 may fall inside the router DHCP pool: if the router leases
+    # the same address, the probe becomes unstable, so remove them once the diagnosis is done.
+    $desiredAddresses = @("192.168.68.2", "192.168.1.2", "192.168.8.2")
+
+    if ($ConfigureStaticIPs -and $RemoveStaticIPs) {
+        Add-Result "Static IP change skipped: -ConfigureStaticIPs and -RemoveStaticIPs are mutually exclusive."
+    } elseif ($ConfigureStaticIPs) {
         if (-not $isAdmin) {
             Add-Result "Static IP configuration skipped: run PowerShell as Administrator."
         } else {
-            $desiredAddresses = @("192.168.68.2", "192.168.1.2", "192.168.8.2")
             foreach ($ip in $desiredAddresses) {
                 $existing = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -ErrorAction SilentlyContinue
                 if ($null -eq $existing) {
@@ -72,6 +86,21 @@ try {
                     Add-Result "Added IPv4 address: $ip/24"
                 } else {
                     Add-Result "IPv4 address already present: $ip/$($existing.PrefixLength)"
+                }
+            }
+            Add-Result "Rollback: re-run this script with -RemoveStaticIPs to delete the probe addresses, or run: Remove-NetIPAddress -InterfaceIndex $($adapter.ifIndex) -IPAddress 192.168.68.2,192.168.1.2,192.168.8.2 -Confirm:`$false"
+        }
+    } elseif ($RemoveStaticIPs) {
+        if (-not $isAdmin) {
+            Add-Result "Static IP removal skipped: run PowerShell as Administrator."
+        } else {
+            foreach ($ip in $desiredAddresses) {
+                $existing = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -ErrorAction SilentlyContinue
+                if ($null -ne $existing) {
+                    Remove-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -Confirm:$false
+                    Add-Result "Removed IPv4 address: $ip/24"
+                } else {
+                    Add-Result "IPv4 address not present: $ip"
                 }
             }
         }

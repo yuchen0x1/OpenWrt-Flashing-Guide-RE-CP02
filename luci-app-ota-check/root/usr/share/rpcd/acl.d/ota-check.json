@@ -3,7 +3,7 @@
 		"description": "Firmware OTA source checker (own update source)",
 		"read": {
 			"ubus": {
-				"file": [ "exec", "list" ]
+				"file": [ "exec", "list", "read" ]
 			},
 			"file": {
 				"/usr/bin/ota-check": [ "exec" ],

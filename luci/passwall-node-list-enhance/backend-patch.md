@@ -88,13 +88,21 @@ url_test_node() {
     ...
 ```
 
-同时确认函数的分发处（脚本入口把 `url_test_node` 作为子命令调用的位置）会把第三个参数透传给 `url_test_node`，例如把
+同时确认脚本入口的分发处（`case "$1" in` 把 `url_test_node` 作为子命令调用的位置）会把 target 一并透传给 `url_test_node` 函数。
+
+改前：
 
 ```sh
 url_test_node) url_test_node "$2" "$3" ;;
 ```
 
-原来的两参调用改为三参透传（保持 `$1`=节点id、`$2`=子命令名、`$3`=target）。
+改后（保持函数内 `$1`=节点id、`$2`=子命令名、`$3`=target，因此分发行必须传满三个位置参数，脚本级的 `$4` 就是 controller 传来的 target）：
+
+```sh
+url_test_node) url_test_node "$2" "$3" "$4" ;;
+```
+
+> 若漏掉这一步，函数内 `local target=$3` 会取到 `"urltest_node"` 字面量，`case` 永远落进 `*)` 回退全局 URL——四个列测同一个地址且无任何报错。验证方法：对四个目标列各点一次 Test，返回的延迟应来自各自 URL（可临时在各分支加 `logger -t urltest "$target $probeUrl"` 核对）。
 
 ## PassWall2 补丁示例
 

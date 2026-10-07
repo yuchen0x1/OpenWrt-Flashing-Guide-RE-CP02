@@ -1,3 +1,14 @@
+## 1.2.4 - 2026-10-07
+
+- 安全修复：PassWall 节点列表补丁（node_list.htm）对订阅侧备注/地址/分组名/协议等远程数据统一 HTML 与 JS 字符串转义，消除存储型 XSS；同步修复手动测速 NaN 卡格、重复地址索引双写、斑马纹 class 未落到表格行、当前节点回调缺 null 守卫、列表加载失败无占位提示与缓存清理跳键；回归测试新增 7 条转义断言。
+- ota-check 修复：rpcd ACL 的 `ubus.file` 白名单补上 `read`，修复独立部署时页面轮询全部被拒、检测成功却显示"后台任务超时"；新增 `--sysupgrade-args="-n"` 等号形式解析（此前按文档示例调用必报未知参数退出）。
+- 更新源一致性：`ota/manifest.json` 的 `latest` 修正回 24.10.6，25.12.2 恢复为仅手动 `--version` 检测，与 README/CHANGELOG 的"不参与自动检测提示"承诺对齐。
+- site 修复：`###` 标题不再复用 `##` 的目录锚点（修复 docs/09 目录跳转错位与重复 id）；Markdown 表格在空行/标题/列表/引用处正确闭合；localStorage 被禁用时站点初始化不再整体中断。
+- project-health-check.ps1 在 Windows PowerShell 5.1 下 `node --check` 与 `git` 的 stderr 不再终止整个检查，语法失败会正确计入 FAIL 并输出 SUMMARY。
+- 文档同步：README 目录树补录三个自制 LuCI 组件、诊断脚本参数表补 `-RemoveStaticIPs`；docs/02 为主线（第三方 U-Boot）设备补上应刷镜像文件名；docs/08 Xray 核心表述改为按校验值自行获取；docs/01 静态地址回退补 `Remove-NetIPAddress`；docs/05 get-wan6-ip 补上传路由器步骤；docs/09 scp 示例修正 `./` 路径；get-wan6-ip.sh 排障提示改为 `ubus list` 查接口。
+- backend-patch.md 补全 test.sh 分发行三参透传的改后代码与漏改后果、验证方法。
+- 仓库清理：删除根目录调试残留 `tmp_luci.json`/`tmp_pk.json`，`.gitignore` 收敛 `*node*` 规则并补 `tmp_*.json` 与 `.zcode/`。
+
 ## 1.2.3 - 2026-10-06
 
 - 固件更新源收录 ImmortalWrt 25.12.2（新大版本分支，SHA256 取自官方 sha256sums）：`latest` 保持 24.10.6，自动检测不提示跨大版本升级；25.12.2 仅供手动下载尝鲜，刷写建议不保留配置并重装核对代理插件等服务。
@@ -47,6 +58,14 @@
 - 增加 Xray soft-float 资产校验记录，便于恢复 v2rayA 全局分流配置。
 - 增加正式刷机前核对 OpenWrt 官方最新版的安全提醒，避免把仓库实测文件误当作长期最新版。
 
+## 0.2.0 - 2026-08-09
+
+- 增加零依赖的玻璃质感网页阅读入口，根目录访问会进入 `site/`。
+- 补齐 9 篇文档卡片，支持全文搜索、弹窗阅读、章节内链、主题持久化和移动端布局。
+- 增加真实路由器首屏视觉、滚动进度、渐显动画、键盘焦点样式与 favicon。
+- 脱敏全球分流文档中的节点域名、IP、Reality 参数，并清理 Tftpd64 配置中的默认密码和本机租约信息。
+- 重新校验仓库内 5 个核心固件与 U-Boot 的 SHA256。
+
 ## 0.1.1 - 2026-07-28
 
 - Added source credits for the original references and firmware notes.
@@ -59,10 +78,3 @@
 - Added flashing, first boot, eMMC overlay, common services, v2rayA, and troubleshooting docs.
 - Added sanitized Windows network diagnostic script.
 - Added LuCI v2rayA shortcut example.
-## 2026-08-09
-
-- 增加零依赖的玻璃质感网页阅读入口，根目录访问会进入 `site/`。
-- 补齐 9 篇文档卡片，支持全文搜索、弹窗阅读、章节内链、主题持久化和移动端布局。
-- 增加真实路由器首屏视觉、滚动进度、渐显动画、键盘焦点样式与 favicon。
-- 脱敏全球分流文档中的节点域名、IP、Reality 参数，并清理 Tftpd64 配置中的默认密码和本机租约信息。
-- 重新校验仓库内 5 个核心固件与 U-Boot 的 SHA256。

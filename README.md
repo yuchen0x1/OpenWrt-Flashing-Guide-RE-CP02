@@ -57,6 +57,9 @@
 ├── luci/
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
+├── luci-app-ota-check/               ← 自制 LuCI 应用：固件更新源检测页（配合 ota-check.sh）
+├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页
+├── luci-theme-glass/                 ← 自制 LuCI 主题（依赖 luci-theme-argon）
 ├── Tftpd64/                          ← TFTP 辅助材料
 ├── SECURITY.md                       ← 敏感信息与安全报告说明
 ├── DISCLAIMER.md                     ← 免责声明
@@ -77,6 +80,7 @@
 | 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
 | 辅助脚本（scripts/） | 更新检测、刷机后清理、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
+| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页、插件中心导航页与 Glass 主题，部署方式见各自 README |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
 ---
@@ -228,6 +232,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\router-net-diagnose.ps1 -Adap
 | `-AdapterName` | 空 | 指定有线网卡名称；为空时脚本自动选择处于 Up 状态且不像虚拟 / WiFi / VPN 的网卡 |
 | `-ResultPath` | `.\router-net-diagnose-result.txt` | 诊断结果输出路径 |
 | `-ConfigureStaticIPs` | 关闭 | 使用管理员权限时，为目标网卡添加 `192.168.68.2`、`192.168.1.2`、`192.168.8.2` 三个 `/24` IPv4 地址 |
+| `-RemoveStaticIPs` | 关闭 | 与 `-ConfigureStaticIPs` 互斥；删除该脚本此前添加的上述探测静态 IPv4 地址（回滚用） |
 | `-TcpTimeoutMs` | `1000` | TCP 端口探测超时，单位毫秒 |
 
 **脚本会检查**：是否管理员权限；目标网卡名称、接口索引、状态与链路速率；当前有线 IPv4 地址；`192.168.68.1` 的 80 / 22 / 23 端口；`192.168.1.1` 的 80 / 22 端口；`192.168.8.1` 的 80 / 22 / 2017 端口；当前 ARP 表。

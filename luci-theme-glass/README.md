@@ -28,7 +28,11 @@ uci commit luci
 uci set luci.main.mediaurlbase="/luci-static/argon"; uci commit luci
 ```
 
-改 CSS 后浏览器若不刷新，LuCI 会按固定版本号缓存静态资源——换个文件名或带 `?v=` 变更即可。
+**发布约定（强制）**：uhttpd 对 `/luci-static/` 资源按 URL 启发式强缓存，只改内容不改 URL 时浏览器不会更新。因此：
+
+- 改 `glass.css` → 必须同步递增 `header.ut` 与 `header_login.ut` 里的引用版本参数（当前 `?v=2`，每次改动 +1）；
+- 改视图 JS → 必须换文件名，并同步 menu.d 的 view path（先例：更新中心 `update-center.js` → `update-center2.js`）；
+- 部署涉及 menu.d / 模板时：`rm -f /tmp/luci-indexcache*` + `/etc/init.d/rpcd restart`。
 
 ## 已知边界
 

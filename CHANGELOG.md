@@ -2,6 +2,7 @@
 
 - 安全修复：PassWall 节点列表补丁（node_list.htm）对订阅侧备注/地址/分组名/协议等远程数据统一 HTML 与 JS 字符串转义，消除存储型 XSS；同步修复手动测速 NaN 卡格、重复地址索引双写、斑马纹 class 未落到表格行、当前节点回调缺 null 守卫、列表加载失败无占位提示与缓存清理跳键；回归测试新增 7 条转义断言。
 - ota-check 修复：rpcd ACL 的 `ubus.file` 白名单补上 `read`，修复独立部署时页面轮询全部被拒、检测成功却显示"后台任务超时"；新增 `--sysupgrade-args="-n"` 等号形式解析（此前按文档示例调用必报未知参数退出）。
+- 更新中心页：更新日志按版本号新→旧排序（此前按 manifest 收录顺序原样渲染，24.10.6 排在 25.12.2 前）；日志标题展示清单 `generated` 日期——路由器读的是上次检测时缓存的 `/tmp/ota-manifest.json`，数据过期一眼可见。
 - 更新源一致性：`ota/manifest.json` 的 `latest` 修正回 24.10.6，25.12.2 恢复为仅手动 `--version` 检测，与 README/CHANGELOG 的"不参与自动检测提示"承诺对齐。
 - site 修复：`###` 标题不再复用 `##` 的目录锚点（修复 docs/09 目录跳转错位与重复 id）；Markdown 表格在空行/标题/列表/引用处正确闭合；localStorage 被禁用时站点初始化不再整体中断。
 - project-health-check.ps1 在 Windows PowerShell 5.1 下 `node --check` 与 `git` 的 stderr 不再终止整个检查，语法失败会正确计入 FAIL 并输出 SUMMARY。

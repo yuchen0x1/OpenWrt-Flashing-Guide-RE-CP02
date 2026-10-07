@@ -75,6 +75,16 @@ function handleRun(ev, args, busyText) {
 	});
 }
 
+/* 版本号降序比较（按 '.' 分段取数值，容忍非数字段） */
+function versionDesc(a, b) {
+	var ka = String(a || '').split('.'), kb = String(b || '').split('.');
+	for (var i = 0; i < Math.max(ka.length, kb.length); i++) {
+		var d = (parseInt(kb[i], 10) || 0) - (parseInt(ka[i], 10) || 0);
+		if (d) return d;
+	}
+	return 0;
+}
+
 function renderChangelog(box, manifestJson) {
 	if (!box) return;
 	var m = null;
@@ -86,6 +96,8 @@ function renderChangelog(box, manifestJson) {
 			_('暂无更新日志。点击「检测更新」后，这里会列出更新源上每个版本的变更说明。')));
 		return;
 	}
+	/* 按版本号新→旧展示，不受 manifest 收录顺序影响 */
+	releases = releases.slice().sort(function(a, b) { return versionDesc(a.version, b.version); });
 	var latest = m.latest || releases[0].version;
 	var items = [];
 	releases.forEach(function(r) {
@@ -100,6 +112,10 @@ function renderChangelog(box, manifestJson) {
 		]));
 	});
 	box.innerHTML = '';
+	/* 展示清单数据日期：路由器读的是上次检测时缓存的 /tmp/ota-manifest.json，过期一眼可见 */
+	if (m.generated)
+		box.appendChild(E('p', { 'style': 'opacity:.55;font-size:12px;margin:0 0 8px' },
+			_('更新源清单生成于 ') + m.generated + _('（上次检测时的本地缓存，点「检测更新」刷新）')));
 	box.appendChild(E('ul', { 'style': 'list-style:none;padding-left:0' }, items));
 }
 

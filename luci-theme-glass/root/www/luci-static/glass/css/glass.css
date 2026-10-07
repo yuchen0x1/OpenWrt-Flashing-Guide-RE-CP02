@@ -312,6 +312,20 @@ ul.tabs li.active a, ul.tabs li:hover a {
 	border-color: transparent !important;
 }
 .cbi-tabmenu li.active a, .cbi-tabmenu li:hover a { color: #fff !important; }
+/* 25.12 form.js 的选项卡面板不带 cbi-tabcontainer 类，argon 以 [data-tab-title] 刷白底，
+   半透明玻璃卡叠在白底上会整卡发白：面板归零，露出 cbi-map 深色底 */
+div[data-tab-title]:not(.cbi-section) {
+	background: transparent !important;
+	box-shadow: none !important;
+}
+/* argon 白底卡片规则对其余容器（网络/无线/opkg/防火墙/错误框）的残留一并归零 */
+.cbi-section-error, .Firewall form, #iptables,
+#cbi-network > .cbi-section-node, #cbi-wireless > .cbi-section-node,
+#cbi-wireless > #wifi_assoclist_table,
+[data-page="admin-system-opkg"] #maincontent > .container {
+	background: transparent !important;
+	box-shadow: none !important;
+}
 .cbi-tabcontainer, .cbi-tabcontainer *::before { background-color: transparent !important; }
 .cbi-value, .cbi-value-field, .cbi-value-title { background-color: transparent !important; }
 .cbi-tabcontainer .cbi-value:hover {

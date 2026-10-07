@@ -1,3 +1,11 @@
+## 1.2.5 - 2026-10-07
+
+- Glass 主题修复：系统设置等带选项卡的表单页整卡发白（ImmortalWrt 25.12 的 form.js 选项卡面板不带 `cbi-tabcontainer` 类，argon 以 `[data-tab-title]` 刷白底，半透明玻璃卡叠白底全卡洗白）；面板与 argon 其余白底卡片容器（网络/无线/opkg/防火墙/错误框）统一归零露出深色底，已用真实 cascade.css + form.js DOM 本地复现验证。
+- passwall-node-list-enhance：补回整文件替换时丢失的原生工具栏（添加 / 删除选择的节点 / 全选）——原生删除按钮同时是增强按钮的注入锚点，缺失会导致"四目标测速并排序"等按钮永不出现；回归测试补 2 条对应断言（实机已核对上游模板 1248-1249 行的按钮形态）。
+- 更新中心：「备份与更新」链接修正为 `admin/system/flash`（实机 luci-mod-system 菜单无 `admin/system/backup`，原为死链）。
+- manifest：25.12.2 条目补 `kernel: 6.12`（实机 `uname -r` = 6.12.103）。
+- 核对结论：插件中心「流量统计」指向 `admin/services/nlbw` 与实机 nlbwmon 菜单一致，无需修改。
+
 ## 1.2.4 - 2026-10-07
 
 - 安全修复：PassWall 节点列表补丁（node_list.htm）对订阅侧备注/地址/分组名/协议等远程数据统一 HTML 与 JS 字符串转义，消除存储型 XSS；同步修复手动测速 NaN 卡格、重复地址索引双写、斑马纹 class 未落到表格行、当前节点回调缺 null 守卫、列表加载失败无占位提示与缓存清理跳键；回归测试新增 7 条转义断言。

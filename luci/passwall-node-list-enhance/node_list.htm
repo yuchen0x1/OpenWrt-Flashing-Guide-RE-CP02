@@ -1033,7 +1033,17 @@ table td, .table .td {
 			}
 		}
 	}
-</script>
+	</script>
+
+	<!-- 原生工具栏：上游模板在此渲染整排按钮；本补丁页仅保留本文件已有函数支撑的三项，
+	     delete_select_nodes 按钮同时是 otaFindDeleteButton 的注入锚点，缺失则增强按钮永不出现 -->
+	<div class="pw-toolbar">
+		<div class="pw-toolbar-field">
+			<input class="btn cbi-button cbi-button-add" type="button" onclick="to_add_node()" value="<%:Add%>" />
+			<input class="btn cbi-button cbi-button-remove" type="button" onclick="delete_select_nodes()" value="<%:Delete select nodes%>" />
+			<input class="btn cbi-button cbi-button-edit" type="button" id="select_all_btn" onclick="checked_all_node(this)" value="<%:Select all%>" />
+		</div>
+	</div>
 
 <script type="text/template" id="nodes-table-template">
 	<fieldset class="cbi-section cbi-tblsection" id="cbi-passwall-nodes-{{group}}-fieldset">

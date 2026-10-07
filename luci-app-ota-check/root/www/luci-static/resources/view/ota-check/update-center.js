@@ -173,7 +173,7 @@ return view.extend({
 					' ',
 					E('a', {
 						'class': 'btn cbi-button',
-						'href': L.url('admin/system/backup')
+						'href': L.url('admin/system/flash')
 					}, _('备份与更新（本地刷写）')),
 					' ',
 					E('a', {

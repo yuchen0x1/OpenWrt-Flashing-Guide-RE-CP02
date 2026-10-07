@@ -212,6 +212,8 @@ assert(/split\("\{\{remarks_val\}\}"\)\.join\(escapeHtml\(o\["remarks"\]\)\)/.te
 assert(/split\("\{\{id\}\}"\)\.join\(escapeAttrJs\(o\["\.name"\]\)\)/.test(source), 'section ids are escaped for both attribute and JS-string contexts');
 assert(/split\("\{\{group\}\}"\)\.join\(escapeAttrJs\(o\["group"\] \|\| ""\)\)/.test(source), 'node group names are escaped for the row_top onclick context');
 assert(!/join\(o\["remarks"\]\)/.test(source), 'raw remarks no longer reach the template unescaped');
+assert(/id="select_all_btn"/.test(source), 'template renders the native select-all button missing from upstream parity');
+assert(/type="button" onclick="delete_select_nodes\(\)"/.test(source), 'template renders the native delete button that anchors the enhance toolbar');
 
 const backendDoc = fs.readFileSync(path.join(path.dirname(templatePath), 'backend-patch.md'), 'utf8');
 for (const key of TARGET_KEYS) {

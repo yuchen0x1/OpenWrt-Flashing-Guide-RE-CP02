@@ -1,7 +1,10 @@
 param(
     [string]$BaseUri = "http://127.0.0.1:18765/",
     [int]$HttpTimeoutSec = 3,
-    [switch]$RequireFirmware
+    [switch]$RequireFirmware,
+    # HTTP 服务未启动时默认跳过 HTTP 检查（只做本地静态文件/语法/校验和检查），
+    # 不再整体 FAIL；CI 或发布前需要强制校验站点时传 -RequireHttp 恢复旧行为。
+    [switch]$RequireHttp
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,7 +83,11 @@ if ($serverAvailable) {
         Check-HttpResource $path
     }
 } else {
-    Fail "HTTP server is not reachable at $base"
+    if ($RequireHttp) {
+        Fail "HTTP server is not reachable at $base (-RequireHttp given)"
+    } else {
+        Skip "HTTP server not reachable at $base; HTTP checks skipped (start it with: python -m http.server 18765 --bind 127.0.0.1, or pass -RequireHttp to enforce)"
+    }
 }
 
 $siteIndex = Get-Content -Raw -Encoding UTF8 (Join-Path $root "site/index.html")

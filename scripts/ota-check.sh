@@ -14,6 +14,10 @@
 #   OTA_ALLOW_FAKE=1 OTA_FAKE_VERSION=23.05.4 OTA_FAKE_MODEL="JDCloud RE-CP-02" ...
 #
 # 下载重试次数（弱网可调大，默认 3 次）：OTA_FETCH_RETRIES=5 ota-check --download
+#
+# 并发锁：同一时间只允许一个 ota-check 运行（运行锁 $OTA_TMP/ota-check.lock，
+# 防止两个进程同时写固定路径的 manifest / 镜像互相截断；进程正常退出或被杀后，
+# 下一次运行会自动接管并清理残留锁）
 
 set -u
 
@@ -50,6 +54,26 @@ log() {
   return 0
 }
 die() { log "错误: $*"; exit 2; }
+
+# 运行锁：/tmp 是多写者共用目录，两个 ota-check 并发会互相覆写 manifest 与镜像。
+# 锁目录存 PID，并用 /proc/<pid>/cmdline 复核（进程死后或 PID 被复用时自动失效）。
+acquire_lock() {
+  LOCK_DIR="$OTA_TMP/ota-check.lock"
+  if [ -d "$LOCK_DIR" ]; then
+    _lp=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+    case "$_lp" in
+      '' | *[!0-9]*) _lp="" ;;
+    esac
+    if [ -n "$_lp" ] && [ -d "/proc/$_lp" ] && grep -q ota-check "/proc/$_lp/cmdline" 2>/dev/null; then
+      die "另一个 ota-check 正在运行（PID $_lp），请等待其完成或删除 $LOCK_DIR"
+    fi
+    log "发现残留运行锁（原进程已退出），自动清理"
+    rm -rf "$LOCK_DIR"
+  fi
+  mkdir "$LOCK_DIR" 2>/dev/null || die "无法创建运行锁: $LOCK_DIR"
+  echo $$ > "$LOCK_DIR/pid"
+  trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
+}
 
 # 单次下载（不带重试）
 fetch_once() {
@@ -147,7 +171,9 @@ parse_manifest() {
       _i=$((_i + 1))
     done
   elif command -v node >/dev/null 2>&1; then
-    cat > "$OTA_TMP/ota-parse.js" <<'EOF'
+    # mktemp 唯一文件名：固定路径写入在多用户/公共 /tmp 下有符号链接劫持风险
+    _parser=$(mktemp "$OTA_TMP/ota-parse.js.XXXXXX") || die "无法创建临时解析脚本"
+    cat > "$_parser" <<'EOF'
 const m = JSON.parse(require("fs").readFileSync(process.argv[2], "utf8"));
 const q = s => String(s == null ? "" : s).replace(/[\r\n]+/g, " ");
 console.log("DISTRO=" + q(m.distro));
@@ -163,9 +189,13 @@ console.log("DEVICE_MATCH=" + q(m.device_match));
   console.log("REL_" + i + "_notes=" + q((r.notes || []).join(" | ")));
 });
 EOF
-    node "$OTA_TMP/ota-parse.js" "$MANIFEST_FILE"
+    node "$_parser" "$MANIFEST_FILE"
+    _rc=$?
+    rm -f "$_parser"
+    return $_rc
   elif command -v python3 >/dev/null 2>&1; then
-    cat > "$OTA_TMP/ota-parse.py" <<'EOF'
+    _parser=$(mktemp "$OTA_TMP/ota-parse.py.XXXXXX") || die "无法创建临时解析脚本"
+    cat > "$_parser" <<'EOF'
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 def q(s):
@@ -182,7 +212,10 @@ for i, r in enumerate(m.get("releases", [])):
     print("REL_%d_size=%s" % (i, q(su.get("size"))))
     print("REL_%d_notes=%s" % (i, q(" | ".join(r.get("notes", [])))))
 EOF
-    python3 "$OTA_TMP/ota-parse.py" "$MANIFEST_FILE"
+    python3 "$_parser" "$MANIFEST_FILE"
+    _rc=$?
+    rm -f "$_parser"
+    return $_rc
   else
     die "解析 manifest 需要 jsonfilter（OpenWrt 自带）、node 或 python3 之一"
   fi
@@ -230,6 +263,7 @@ parsed_field() {
 }
 
 MANIFEST_FILE="$OTA_TMP/ota-manifest.json"
+acquire_lock
 log "拉取更新源: $OTA_MANIFEST_URL"
 fetch_url "$OTA_MANIFEST_URL" "$MANIFEST_FILE" || die "拉取 manifest 失败（检查网络；HTTPS 报 TLS 错误时安装 libustream-mbedtls ca-bundle）"
 
@@ -308,6 +342,18 @@ fi
 
 IMG_NAME=$(printf '%s' "$TARGET_URL" | awk -F/ '{print $NF}')
 IMG_PATH="$OTA_TMP/$IMG_NAME"
+
+# 下载前检查 /tmp 剩余空间（/tmp 是内存盘，镜像约 10MB，写满会挤爆运行内存）
+if [ -n "$TARGET_SIZE" ]; then
+  _avail=$(df -k "$OTA_TMP" 2>/dev/null | awk 'NR==2 {print $4}')
+  case "$_avail" in
+    '' | *[!0-9]*) _avail="" ;;
+  esac
+  if [ -n "$_avail" ] && [ "$_avail" -lt $((TARGET_SIZE / 1024 + 1024)) ]; then
+    die "/tmp 可用空间不足（需要约 $((TARGET_SIZE / 1024)) KB，剩余 $_avail KB）；先清理 /tmp 大文件或重启路由器后重试"
+  fi
+fi
+
 log "下载镜像: $TARGET_URL"
 fetch_url "$TARGET_URL" "$IMG_PATH" || die "镜像下载失败"
 [ -s "$IMG_PATH" ] || die "下载的镜像为空: $IMG_PATH"

@@ -7,6 +7,9 @@
  * 固件更新源检测页：包装 /usr/bin/ota-check（自有更新源，见仓库 ota/README.md）。
  * 检测通过 ota-check-ui 包装器后台执行，页面轮询 /tmp/ota-check-ui.out，
  * 避免 rpcd file exec 长阻塞导致按钮永远转圈。
+ * 包装器带并发锁：重复点击/多标签页触发时返回 OTA_BUSY 且不清空输出文件，
+ * 此时直接转入轮询即可看到正在运行任务的实时进度（发布约定：视图 JS 改动须
+ * 换文件名并同步 menu.d，本视图由 update-center2.js 更名而来）。
  * 更新日志读自 ota-check 每次检测保存的 /tmp/ota-manifest.json。
  * 节点引用在点击时按 id 现场查找，避免主题动画换 DOM 后引用失效。
  * 网页只提供「检测」与「下载校验」；刷写动作保留在 SSH 的 ota-check --flash，
@@ -65,7 +68,13 @@ function handleRun(ev, args, busyText) {
 	setOut(busyText);
 	setBadge('…');
 
-	return fs.exec('/usr/bin/ota-check-ui', args || []).then(function() {
+	return fs.exec('/usr/bin/ota-check-ui', args || []).then(function(res) {
+		/* 包装器发现已有后台任务时输出 OTA_BUSY：输出文件归正在运行的任务所有，
+		   不清空不重置，直接转入轮询展示其实时进度 */
+		if (res && /OTA_BUSY/.test(res.stdout || '')) {
+			setBadge('已有任务进行中', 'label-warning');
+			setOut('已有检测/下载任务在后台运行，下方实时显示该任务进度…');
+		}
 		return pollResult(60);
 	}).catch(function(e) {
 		setBadge('执行失败', 'label-danger');
@@ -98,6 +107,7 @@ function renderChangelog(box, manifestJson) {
 	}
 	/* 按版本号新→旧展示，不受 manifest 收录顺序影响 */
 	releases = releases.slice().sort(function(a, b) { return versionDesc(a.version, b.version); });
+
 	var latest = m.latest || releases[0].version;
 	var items = [];
 	releases.forEach(function(r) {

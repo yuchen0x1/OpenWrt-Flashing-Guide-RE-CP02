@@ -3,8 +3,33 @@
 # 页面轮询该文件直到出现 __OTA_DONE_<exitcode>__ 标记。
 # 子进程的 stdout/stderr 必须全部重定向走，否则 rpcd 的 file exec
 # 会一直等管道 EOF，网页按钮就永远转圈。
+#
+# 并发锁：同一时间只允许一个后台检测/下载任务（/tmp/ota-check-ui.lock 存活 PID）。
+# 重复触发时输出 OTA_BUSY 且不清空输出文件，页面检测到 OTA_BUSY 后直接转入
+# 轮询，展示正在运行任务的实时进度。没有锁时连点/多标签页会同时向同一个
+# 输出文件写入，输出交织、下载中的镜像互相截断。
+# 锁通过 /proc/<pid>/cmdline 复核，进程死亡或 PID 被复用后自动失效。
 
 OUT=/tmp/ota-check-ui.out
+LOCK=/tmp/ota-check-ui.lock
+
+lock_active() {
+  [ -s "$LOCK" ] || return 1
+  _pid=$(cat "$LOCK" 2>/dev/null)
+  case "$_pid" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+  [ -d "/proc/$_pid" ] || return 1
+  grep -q ota-check "/proc/$_pid/cmdline" 2>/dev/null
+}
+
+if lock_active; then
+  echo "OTA_BUSY"
+  exit 0
+fi
+rm -f "$LOCK"
+
 : > "$OUT"
-( /usr/bin/ota-check "$@" > "$OUT" 2>&1; echo "__OTA_DONE_$?__" >> "$OUT" ) >/dev/null 2>&1 &
+( /usr/bin/ota-check "$@" > "$OUT" 2>&1; echo "__OTA_DONE_$?__" >> "$OUT"; rm -f "$LOCK" ) >/dev/null 2>&1 &
+echo $! > "$LOCK"
 echo "已启动后台检测"

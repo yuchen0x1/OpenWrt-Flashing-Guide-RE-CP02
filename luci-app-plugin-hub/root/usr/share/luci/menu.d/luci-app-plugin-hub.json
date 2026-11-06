@@ -4,7 +4,7 @@
 		"order": 1,
 		"action": {
 			"type": "view",
-			"path": "plugin-hub/dashboard"
+			"path": "plugin-hub/dashboard2"
 		}
 	}
 }

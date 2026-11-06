@@ -1,0 +1,13 @@
+{
+	"plugin-hub": {
+		"description": "Plugin hub service status probing (init scripts + procd service list)",
+		"read": {
+			"ubus": {
+				"service": [ "list" ]
+			},
+			"file": {
+				"/etc/init.d": [ "list" ]
+			}
+		}
+	}
+}

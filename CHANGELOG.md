@@ -1,3 +1,17 @@
+## 1.3.0 - 2026-11-06
+
+- 新增 `luci-app-status-panel`（状态 → 状态面板）：iStoreOS 风格硬件监控页——物理网口状态图（wan/lan1..4 自动发现，回退 eth0/eth1，绿光=已连接带协商速率，5 秒轮询）、CPU 占用（/proc/stat 差分）、内存进度条、负载与全部物理口合计收发速率；只读，ubus/file 调用全部在 ACL 白名单内（`admin/status/status-panel`，order 5）。
+- 插件中心升级（`dashboard.js` → `dashboard2.js`，按发布约定改名并同步 menu.d）：卡片新增服务状态徽标——「运行中」（procd service list 存在）/「已停止」（有 init 脚本未运行）/「未安装」（连 init 脚本都没有，卡片置灰）；独立端口卡片加「仅限局域网」黄色徽标并在页首常驻安全提醒（ttyd/文件管理器/Transmission 勿映射 WAN）；探测失败自动降级不影响跳转；新增 `acl.d/luci-app-plugin-hub.json`。
+- Glass 主题深浅双模式：顶栏右上角 ◐ 切换按钮在「跟随系统 → 浅色 → 深色」间循环并持久化 localStorage；浅色为「晨曦微光」面板（浅白磨砂玻璃 + 同套渐变主色），覆盖表单/表格/弹窗/登录页/第三方应用白底残留；模式决策脚本前置到 `<head>`（head_meta.ut）防闪色，theme-color meta 同步切换；glass.css 版本参数 `?v=2` → `?v=3`。
+- Glass 主题节能：小屏（≤768px）自动降低光斑模糊与磨砂强度省 GPU；`prefers-reduced-motion` 用户停用光斑动画与过渡。
+- 安全修复：`ota-check-ui` 加并发锁（`/tmp/ota-check-ui.lock` + `/proc/<pid>/cmdline` 复核）——重复点击/多标签页不再同时写同一输出文件；已运行时返回 `OTA_BUSY`，页面直接转入轮询复用正在运行任务的实时进度（更新中心 `update-center2.js` → `update-center3.js` 按约定改名）。
+- 安全修复：`ota-check.sh` ① 运行锁（`$OTA_TMP/ota-check.lock`，EXIT/INT/TERM 自动清理，残留锁自动接管）防止并发互相覆写 manifest 与镜像；② node/python3 解析器临时脚本改 `mktemp` 唯一文件名，消除固定路径符号链接劫持面；③ `--download/--flash` 前检查 `/tmp` 剩余空间（镜像约 10MB 写满内存盘会挤爆运行内存）。
+- 新增 `scripts/emmc-one-key-setup.sh`：一键 eMMC 扩容 overlay，封装 docs/04 手工流程（备份 → 重建分区 → mkfs.ext4 -F → 迁移 → fstab），默认干跑 + `--apply` + YES 二次确认，拒绝 `/dev/mtd*`，分区后自动校验，重复迁移检测。
+- 新增 `scripts/router-lan-rescue.sh`：网络急救——LAN 一键恢复静态 192.168.8.1/24（`--ip` 可改）、重开 LAN DHCP、可选 `--wifi` 打开全部 radio，默认干跑 + `--apply` + YES 确认，IPv4 参数校验（含注入拒绝）。
+- 健康检查 `project-health-check.ps1`：HTTP 服务未启动时默认 SKIP 并给出启动命令提示（只做本地静态/语法/校验和检查），`-RequireHttp` 恢复强制校验——本地离线跑检查不再整体 FAIL。
+- Glass 主题模板修复：footer.ut 的 `luciLocation` 改用 `json()` 序列化输出，消除未转义 ucode 插值。
+- 文档同步：README 工具箱扩为八个（补 eMMC 扩容与网络急救两节）、目录树补录 `luci-app-status-panel` 与两个新脚本；luci-app-plugin-hub、luci-theme-glass README 对应更新；新增 luci-app-status-panel README。
+
 ## 1.2.5 - 2026-10-07
 
 - Glass 主题修复：系统设置等带选项卡的表单页整卡发白（ImmortalWrt 25.12 的 form.js 选项卡面板不带 `cbi-tabcontainer` 类，argon 以 `[data-tab-title]` 刷白底，半透明玻璃卡叠白底全卡洗白）；面板与 argon 其余白底卡片容器（网络/无线/opkg/防火墙/错误框）统一归零露出深色底，已用真实 cascade.css + form.js DOM 本地复现验证。

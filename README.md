@@ -23,7 +23,7 @@
 5. [刷机主线：十篇文档按序读](#刷机主线十篇文档按序读)
 6. [官方更新与回滚](#官方更新与回滚)
 7. [固件与校验值](#固件与校验值)
-8. [工具箱：六个实用小工具](#工具箱六个实用小工具)
+8. [工具箱：八个实用小工具](#工具箱八个实用小工具)
 9. [遇到问题先查这里](#遇到问题先查这里)
 10. [高频问答](#高频问答)
 11. [参与贡献与维护约定](#参与贡献与维护约定)
@@ -48,8 +48,10 @@
 │   └── SHA256SUMS.txt                ← 固件与 Xray 文件的 SHA256 清单（共 8 项）
 ├── ota/                              ← 自有固件更新源（manifest + 发布说明）
 ├── scripts/
-│   ├── ota-check.sh                  ← 路由器端固件更新检测（自有更新源）
+│   ├── ota-check.sh                  ← 路由器端固件更新检测（自有更新源，带运行锁）
 │   ├── router-post-flash-cleanup.sh  ← 刷机后去无用功能清理
+│   ├── emmc-one-key-setup.sh         ← 一键 eMMC 扩容 overlay（干跑预览 + YES 确认）
+│   ├── router-lan-rescue.sh          ← 网络急救：LAN / DHCP / WiFi 一键恢复
 │   ├── router-net-diagnose.ps1       ← Windows 网络诊断脚本
 │   ├── project-health-check.ps1      ← 本地站点与项目健康检查
 │   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
@@ -58,8 +60,9 @@
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
 ├── luci-app-ota-check/               ← 自制 LuCI 应用：固件更新源检测页（配合 ota-check.sh）
-├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页
-├── luci-theme-glass/                 ← 自制 LuCI 主题（依赖 luci-theme-argon）
+├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页（带服务状态徽标）
+├── luci-app-status-panel/            ← 自制 LuCI 应用：状态面板（网口状态图 + 实时资源）
+├── luci-theme-glass/                 ← 自制 LuCI 主题（深浅双模式，依赖 luci-theme-argon）
 ├── Tftpd64/                          ← TFTP 辅助材料
 ├── SECURITY.md                       ← 敏感信息与安全报告说明
 ├── DISCLAIMER.md                     ← 免责声明
@@ -78,9 +81,9 @@
 | 校验清单（firmware/） | U-Boot、initramfs、sysupgrade 固件与 Xray 文件的 SHA256，用于刷机前逐项比对 |
 | PassWall 节点补丁（luci/passwall-node-list-enhance/） | 可选的节点测速排序与明确超标筛选补丁，不含订阅和节点数据 |
 | 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
-| 辅助脚本（scripts/） | 更新检测、刷机后清理、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
+| 辅助脚本（scripts/） | 更新检测、刷机后清理、一键 eMMC 扩容、网络急救、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
-| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页、插件中心导航页与 Glass 主题，部署方式见各自 README |
+| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页、带服务状态徽标的插件中心、iStoreOS 风格状态面板与深浅双模式 Glass 主题，部署方式见各自 README |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
 ---
@@ -207,7 +210,7 @@ sha256sum firmware/u-boot-mt7621-68.bin
 
 ---
 
-## 工具箱：六个实用小工具
+## 工具箱：八个实用小工具
 
 ### 工具一：Windows 网络诊断脚本
 
@@ -294,6 +297,28 @@ ssh root@<路由器IP> 'sh /tmp/router-post-flash-cleanup.sh --apply'  # 确认�
 ### 工具六：PassWall 节点四目标测速排序与筛选
 
 `luci/passwall-node-list-enhance/` 提供一个可选的 LuCI 节点列表模板补丁：URL 测试列扩展为百度、谷歌、GitHub、Instagram 四个固定目标列，“四目标测速并排序”按钮按每节点 4 个请求（最多 8 并发）测完四个目标后，在各分组内按四目标最低延迟排序；“删除超标节点”按钮只在当前分组内勾选任一目标明确达到或超过 `1500 ms` 的节点（`1499 ms` 不勾选）。缺失、超时和错误响应不会自动删除，真正删除仍需原生二次确认。注意：上游 PassWall 的 `urltest_node` 接口不支持自定义测试目标，需按 [backend-patch.md](luci/passwall-node-list-enhance/backend-patch.md) 同步套用后端 `target` 白名单补丁，四个列才能真实工作。补丁不包含订阅、节点或任何私人配置，部署前必须先备份目标模板。详见 [补丁说明](luci/passwall-node-list-enhance/README.md)，行为回归测试为 `node scripts/check-passwall-node-list-enhance.js`。
+
+### 工具七：一键 eMMC 扩容 overlay
+
+把 [eMMC 扩容到 overlay](docs/04-emmc-overlay.md) 的手工命令封装成安全脚本：默认干跑预览，`--apply` 后还要交互输入 YES；执行前自动把当前 `/overlay` 打包备份到 `/tmp`，分区完成后自动校验分区节点，失败立即中止并给出手工指引。只接受 `/dev/mmcblk0` 形式设备名，`/dev/mtd*` 一律拒绝。
+
+```sh
+scp scripts/emmc-one-key-setup.sh root@<路由器IP>:/tmp/
+ssh root@<路由器IP> 'sh /tmp/emmc-one-key-setup.sh'            # 先预览
+ssh root@<路由器IP> 'sh /tmp/emmc-one-key-setup.sh --apply'    # 确认后执行
+```
+
+⚠ 会清空 eMMC 上全部旧数据（含以前的数据分区），执行前确认无需保留。备份包在 `/tmp`，重启即失效，需要长期留存先 `scp` 回电脑。
+
+### 工具八：网络急救脚本
+
+改错 LAN IP、关掉 LAN DHCP 或 WiFi 导致进不去后台时，把 LAN 一键恢复为静态 `192.168.8.1/24` 并重新打开 DHCP 服务端（`--ip` 可指定其他地址，`--wifi` 同时打开所有 radio）。默认干跑预览，`--apply` + YES 确认后执行，会重启 network/dnsmasq（SSH 瞬断，用新地址重连）。
+
+```sh
+scp scripts/router-lan-rescue.sh root@192.168.8.1:/tmp/        # 地址以实际可达的为准
+ssh root@<路由器IP> 'sh /tmp/router-lan-rescue.sh'             # 先预览
+ssh root@<路由器IP> 'sh /tmp/router-lan-rescue.sh --apply'     # 确认后执行
+```
 
 ---
 

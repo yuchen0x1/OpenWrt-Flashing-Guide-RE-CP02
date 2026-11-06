@@ -2,6 +2,8 @@
 
 自制 LuCI 主题：深空渐变 + 三色光斑背景，玻璃拟态卡片（半透明 + backdrop blur），渐变主色贯穿侧栏指示条、按钮、进度条与登录页。组件骨架沿用 argon 的 cascade.css 保证功能完整，视觉与排版全部由本主题的 `glass.css` 自绘。
 
+**1.3.0 起支持深浅双模式**：顶栏右上角 ◐ 按钮在「跟随系统 → 浅色（晨曦微光）→ 深色」之间循环，选择持久化到浏览器 `localStorage`；浅色面板为浅白磨砂玻璃底 + 同套渐变主色，登录页跟随系统自动切换（登录页无按钮）。早期模式决策脚本放在 `<head>`（head_meta.ut），浅色用户不会先看到深色再闪一下。
+
 适用于 ImmortalWrt 25.12（ucode 模板，包管理器 apk）。24.10（opkg、旧 ucode 路径）未适配。
 
 ## 文件与部署位置
@@ -30,12 +32,13 @@ uci set luci.main.mediaurlbase="/luci-static/argon"; uci commit luci
 
 **发布约定（强制）**：uhttpd 对 `/luci-static/` 资源按 URL 启发式强缓存，只改内容不改 URL 时浏览器不会更新。因此：
 
-- 改 `glass.css` → 必须同步递增 `header.ut` 与 `header_login.ut` 里的引用版本参数（当前 `?v=2`，每次改动 +1）；
-- 改视图 JS → 必须换文件名，并同步 menu.d 的 view path（先例：更新中心 `update-center.js` → `update-center2.js`）；
+- 改 `glass.css` → 必须同步递增 `header.ut` 与 `header_login.ut` 里的引用版本参数（当前 `?v=3`，每次改动 +1）；
+- 改视图 JS → 必须换文件名，并同步 menu.d 的 view path（先例：更新中心 `update-center.js` → `update-center2.js` → `update-center3.js`）；
 - 部署涉及 menu.d / 模板时：`rm -f /tmp/luci-indexcache*` + `/etc/init.d/rpcd restart`。
 
 ## 已知边界
 
-- 25.12 的 uhttpd 不支持 `no_cache` UCI 选项，静态资源存在浏览器启发式缓存；
+- 25.12 的 uhttpd 不支持 `no_cache` UCI 选项，静态资源存在浏览器启发式缓存（版本参数 + 视图改名双保险规避）；
 - 插件升级覆盖 argon 的 cascade.css 极少影响本主题（glass.css 的覆盖带 `!important`）；
-- 深色单模式：玻璃设计以深色为底，未做浅色变体。
+- 浅色模式覆盖了全部核心界面（表单/表格/弹窗/登录页/第三方应用白底残留），个别自制应用的硬编码内联样式（如更新中心的深色输出框）在浅色下保持深色，属预期效果；
+- 小屏设备自动降低光斑模糊与磨砂强度（省 GPU），`prefers-reduced-motion` 用户停用装饰动画。

@@ -8,3 +8,31 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1020">
 <link rel="icon" type="image/x-icon" href="/luci-static/argon/favicon.ico">
+<script>
+	/* Glass 主题模式：auto（跟随系统）/ light / dark，存 localStorage。
+	   放在 <head> 里早于首帧执行，避免浅色用户先看到深色再闪一下。 */
+	(function () {
+		var mode = 'auto';
+		try { mode = localStorage.getItem('glass-mode') || 'auto'; } catch (e) {}
+		function isLight(m) {
+			return m === 'light' || (m === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+		}
+		function apply(m) {
+			var light = isLight(m);
+			document.documentElement.classList.toggle('glass-light', light);
+			var meta = document.querySelector('meta[name="theme-color"]');
+			if (meta) { meta.setAttribute('content', light ? '#f2f4fa' : '#0b1020'); }
+		}
+		apply(mode);
+		if (window.matchMedia) {
+			var mq = window.matchMedia('(prefers-color-scheme: light)');
+			var onChange = function () {
+				var cur = 'auto';
+				try { cur = localStorage.getItem('glass-mode') || 'auto'; } catch (e) {}
+				if (cur === 'auto') { apply('auto'); }
+			};
+			if (mq.addEventListener) { mq.addEventListener('change', onChange); }
+			else if (mq.addListener) { mq.addListener(onChange); }
+		}
+	})();
+</script>

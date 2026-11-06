@@ -18,7 +18,7 @@
 	{% include("themes/" + theme + "/head_meta", { hostname: hostname, node: node, media: media }) %}
 
 	<link rel="stylesheet" href="/luci-static/argon/css/cascade.css?v=2.4.7">
-	<link rel="stylesheet" href="{{ media }}/css/glass.css?v=2">
+	<link rel="stylesheet" href="{{ media }}/css/glass.css?v=3">
 	{% if (node?.css): %}
 	<link rel="stylesheet" href="{{ resource }}/{{ node.css}}">
 	{% endif -%}
@@ -68,6 +68,7 @@
 							<a class="brand" href="#">{{ hostname }}</a>
 						</div>
 						<div class="status" id="indicators"></div>
+						<a class="glass-mode-toggle" id="glass-mode-toggle" href="javascript:void(0)" title="主题模式"></a>
 					</div>
 				</div>
 			</header>

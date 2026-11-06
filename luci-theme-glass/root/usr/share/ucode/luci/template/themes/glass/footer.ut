@@ -12,7 +12,7 @@
 	</div>
 </div>
 <script>
-	var luciLocation = {{ ctx.path }};
+	var luciLocation = {{ json(ctx.path) }};
 	var winHeight = window.innerHeight;
 	window.addEventListener('resize', function () {
 		var winWidth = window.innerWidth;
@@ -25,6 +25,34 @@
 			}
 		}
 	});
+</script>
+<script>
+	/* Glass 主题模式切换按钮：auto（跟随系统）→ light → dark 循环，持久化到 localStorage */
+	(function () {
+		var btn = document.getElementById('glass-mode-toggle');
+		if (!btn) { return; }
+		var ORDER = ['auto', 'light', 'dark'];
+		var ICONS = { auto: '◐', light: '☀', dark: '☾' };
+		var LABELS = { auto: '跟随系统', light: '浅色', dark: '深色' };
+		function current() {
+			try { return localStorage.getItem('glass-mode') || 'auto'; } catch (e) { return 'auto'; }
+		}
+		function paint() {
+			var m = current();
+			btn.textContent = ICONS[m] || ICONS.auto;
+			btn.title = '主题模式：' + (LABELS[m] || LABELS.auto) + '（点击切换）';
+		}
+		btn.addEventListener('click', function () {
+			var next = ORDER[(ORDER.indexOf(current()) + 1) % ORDER.length];
+			try { localStorage.setItem('glass-mode', next); } catch (e) {}
+			var light = next === 'light' || (next === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+			document.documentElement.classList.toggle('glass-light', light);
+			var meta = document.querySelector('meta[name="theme-color"]');
+			if (meta) { meta.setAttribute('content', light ? '#f2f4fa' : '#0b1020'); }
+			paint();
+		});
+		paint();
+	})();
 </script>
 <script type="text/javascript">L.require('menu-argon')</script>
 </body>

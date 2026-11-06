@@ -586,3 +586,175 @@ input[type="password"], input[type="text"], input[type="number"] { color-scheme:
 	.darkMask { background: rgba(0, 0, 0, .55) !important; }
 	.login-container { padding: 1.8rem 1.4rem !important; }
 }
+
+/* ---------- 主题模式切换按钮（header 右上角，深浅两模式通用） ---------- */
+
+.glass-mode-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	margin-left: 10px;
+	border-radius: 50%;
+	border: 1px solid var(--g-border);
+	background: var(--g-glass-strong);
+	color: var(--g-text);
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	user-select: none;
+	transition: all .18s ease;
+}
+.glass-mode-toggle:hover {
+	border-color: var(--g-border-bright);
+	box-shadow: 0 0 10px rgba(139, 92, 246, .35);
+	transform: translateY(-1px);
+}
+
+/* ---------- 浅色模式（晨曦微光 · html.glass-light） ----------
+   由 head_meta.ut 的早期脚本按 localStorage('glass-mode') 与
+   prefers-color-scheme 决定是否挂到 <html>；覆盖所有深色硬编码值。 */
+
+html.glass-light {
+	--g-bg: #eef1f8;
+	--g-text: rgba(30, 38, 56, .95);
+	--g-text-dim: rgba(46, 56, 78, .62);
+	--g-glass: rgba(255, 255, 255, .55);
+	--g-glass-strong: rgba(255, 255, 255, .78);
+	--g-border: rgba(30, 40, 70, .12);
+	--g-border-bright: rgba(30, 40, 70, .22);
+	--g-blur: blur(20px) saturate(140%);
+	--g-shadow: 0 8px 28px rgba(84, 96, 140, .18);
+	color-scheme: light;
+}
+
+html.glass-light .glass-bg {
+	background:
+		radial-gradient(ellipse 90% 65% at 70% -10%, rgba(139, 92, 246, .14), transparent 60%),
+		linear-gradient(160deg, #eef1f8 0%, #e7ecf7 55%, #e2e9f6 100%);
+}
+html.glass-light .glass-bg .gb { opacity: .22; }
+html.glass-light .glass-bg .gb-1 { background: radial-gradient(circle, #b39dff, transparent 65%); }
+html.glass-light .glass-bg .gb-2 { background: radial-gradient(circle, #7dd3fc, transparent 65%); }
+html.glass-light .glass-bg .gb-3 { background: radial-gradient(circle, #f9a8d4, transparent 65%); }
+html.glass-light .glass-bg .gb-grid {
+	background-image:
+		linear-gradient(rgba(70, 90, 140, .05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(70, 90, 140, .05) 1px, transparent 1px);
+}
+html.glass-light ::selection { background: rgba(139, 92, 246, .25); color: #1e2638; }
+
+/* 顶栏 / 侧栏 */
+html.glass-light .main-right header.bg-primary { background: rgba(255, 255, 255, .62) !important; }
+html.glass-light header .showSide::before { color: rgba(30, 40, 70, .75); }
+html.glass-light .main-left { background: rgba(255, 255, 255, .6) !important; box-shadow: 4px 0 32px rgba(84, 96, 140, .18); }
+html.glass-light .main-left li > a:hover,
+html.glass-light .main-left li.active > a,
+html.glass-light .main-left li.slide-menu-active > a {
+	color: var(--g-text) !important;
+	box-shadow: inset 3px 0 0 0 transparent, 0 4px 14px rgba(124, 77, 255, .12);
+}
+html.glass-light .main-left ul.dropdown-menu { background: rgba(255, 255, 255, .96) !important; }
+
+/* 主内容 / 表格 / 卡片 */
+html.glass-light .tr:hover > .td, html.glass-light .tr:hover > .th,
+html.glass-light tr:hover > td, html.glass-light tr:hover > th,
+html.glass-light .table .tr:hover .td, html.glass-light .table .tr:hover .th,
+html.glass-light .cbi-tabcontainer .cbi-value:hover {
+	background-color: rgba(70, 90, 140, .07) !important;
+}
+html.glass-light .cbi-value { border-bottom: 1px dashed rgba(30, 40, 70, .12); }
+html.glass-light .table .tr .th, html.glass-light .table .tr .td,
+html.glass-light tr > td, html.glass-light tr > th {
+	border-bottom: 1px solid rgba(30, 40, 70, .1) !important;
+}
+html.glass-light .darkMask { background: rgba(15, 23, 42, .35) !important; }
+
+/* 表单控件 */
+html.glass-light input, html.glass-light select, html.glass-light textarea,
+html.glass-light .cbi-dropdown {
+	background: rgba(255, 255, 255, .8) !important;
+}
+html.glass-light input::placeholder { color: rgba(30, 40, 70, .35); }
+html.glass-light select option { background: #fff; color: #1e2638; }
+html.glass-light div[style*="display: table-cell"] select { color-scheme: light; }
+html.glass-light input[type="password"], html.glass-light input[type="text"],
+html.glass-light input[type="number"] { color-scheme: light; }
+
+/* 按钮 */
+html.glass-light .btn:hover, html.glass-light .cbi-button:hover { box-shadow: 0 6px 18px rgba(84, 96, 140, .25); }
+html.glass-light .cbi-button-remove, html.glass-light .cbi-button-negative, html.glass-light .cbi-button-reset {
+	background: rgba(225, 29, 72, .08) !important;
+	border: 1px solid rgba(225, 29, 72, .35) !important;
+	color: #be123c !important;
+}
+
+/* 徽标 / 提示 */
+html.glass-light .label-success { color: #15803d !important; background: rgba(34, 197, 94, .14) !important; border-color: rgba(34, 197, 94, .45); }
+html.glass-light .label-warning { color: #b45309 !important; background: rgba(245, 158, 11, .14) !important; border-color: rgba(245, 158, 11, .45); }
+html.glass-light .label-danger  { color: #be123c !important; background: rgba(225, 29, 72, .1) !important; border-color: rgba(225, 29, 72, .45); }
+
+/* 弹窗 */
+html.glass-light #modal_overlay, html.glass-light .modal-backdrop { background: rgba(15, 23, 42, .4) !important; }
+html.glass-light .modal, html.glass-light .cbi-modal, html.glass-light .dialog {
+	background: rgba(255, 255, 255, .96) !important;
+	box-shadow: 0 24px 64px rgba(30, 40, 70, .35) !important;
+}
+html.glass-light .modal a { color: #6366f1 !important; }
+
+/* 登录页 */
+html.glass-light .login-orb { opacity: .3; }
+html.glass-light .login-orb.orb-1 { background: radial-gradient(circle, #b39dff, transparent 65%); }
+html.glass-light .login-orb.orb-2 { background: radial-gradient(circle, #7dd3fc, transparent 65%); }
+html.glass-light .login-orb.orb-3 { background: radial-gradient(circle, #f9a8d4, transparent 65%); }
+html.glass-light .login-container {
+	background: rgba(255, 255, 255, .62) !important;
+	box-shadow: var(--g-shadow), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+html.glass-light .login-form .brand .brand-text { color: #1e2638; }
+html.glass-light .form-login .input-container .input-group input {
+	background: rgba(255, 255, 255, .85) !important;
+	color: #1e2638;
+}
+html.glass-light .form-login .input-container .input-group::before { color: rgba(30, 40, 70, .45) !important; }
+html.glass-light .login-form .errorbox {
+	background: rgba(225, 29, 72, .08) !important;
+	border: 1px solid rgba(225, 29, 72, .35) !important;
+	color: #be123c !important;
+}
+
+/* 杂项 */
+html.glass-light a { color: #6366f1; }
+html.glass-light a:hover { color: #7c3aed; }
+html.glass-light .cbi-progressbar { background: rgba(30, 40, 70, .08) !important; }
+html.glass-light .zonebadge .ifacebadge { background: rgba(30, 40, 70, .06) !important; }
+
+/* ---------- 低性能设备与减弱动效节能 ----------
+   小屏设备：光斑降模糊/降透明度（省 GPU）、磨砂半强；
+   prefers-reduced-motion：停掉所有装饰动画。 */
+
+@media screen and (max-width: 768px) {
+	.glass-bg .gb {
+		filter: blur(60px) !important;
+		opacity: .38;
+	}
+	.main-left,
+	.main-right header.bg-primary,
+	.cbi-map, .cbi-section, .cbi-modal,
+	.login-container, .modal, .dialog {
+		backdrop-filter: blur(12px) saturate(130%) !important;
+		-webkit-backdrop-filter: blur(12px) saturate(130%) !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.glass-bg .gb,
+	.login-orb {
+		animation: none !important;
+	}
+	.btn, .cbi-button, .main-left li > a,
+	.glass-mode-toggle {
+		transition: none !important;
+	}
+}

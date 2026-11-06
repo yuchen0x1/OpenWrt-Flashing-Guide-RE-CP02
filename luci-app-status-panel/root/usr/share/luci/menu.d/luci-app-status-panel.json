@@ -1,0 +1,13 @@
+{
+	"admin/status/status-panel": {
+		"title": "状态面板",
+		"order": 5,
+		"action": {
+			"type": "view",
+			"path": "status-panel/panel"
+		},
+		"depends": {
+			"acl": [ "status-panel" ]
+		}
+	}
+}

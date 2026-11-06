@@ -1,0 +1,15 @@
+{
+	"status-panel": {
+		"description": "Hardware status panel (port link states, system info, CPU sampling)",
+		"read": {
+			"ubus": {
+				"network.device": [ "status" ],
+				"system": [ "info", "board" ]
+			},
+			"file": {
+				"/proc/stat": [ "read" ],
+				"/etc/openwrt_release": [ "read" ]
+			}
+		}
+	}
+}

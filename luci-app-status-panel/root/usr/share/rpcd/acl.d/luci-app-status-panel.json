@@ -1,14 +1,17 @@
 {
 	"status-panel": {
-		"description": "Hardware status panel (port link states, system info, CPU sampling)",
+		"description": "Hardware status panel (port link states, system info, CPU sampling, temp, wireless clients)",
 		"read": {
 			"ubus": {
 				"network.device": [ "status" ],
-				"system": [ "info", "board" ]
+				"network.wireless": [ "status" ],
+				"system": [ "info", "board" ],
+				"iwinfo": [ "assoclist" ]
 			},
 			"file": {
 				"/proc/stat": [ "read" ],
-				"/etc/openwrt_release": [ "read" ]
+				"/etc/openwrt_release": [ "read" ],
+				"/sys/class/thermal/*": [ "read" ]
 			}
 		}
 	}

@@ -17,6 +17,12 @@
 
 探测被 ACL 拒绝或 rpcd 异常时自动降级为不显示徽标，跳转功能不受影响。
 
+## 服务快捷操作（1.4.0 起）
+
+对「已安装」（有 init 脚本）的服务卡片，底部提供「启动 / 停止 / 重启」三个按钮，
+通过 `fs.exec` 调用 `/etc/init.d/<name> <action>`，操作完成后自动重读状态徽标。
+需要 ACL 允许对 `/etc/init.d/` 下的脚本执行 `file exec`（见下方 ACL 配置）。
+
 ## 安全提醒（页面内常驻）
 
 独立端口的网页界面（网页终端 ttyd、文件管理器、Transmission 等）有独立登录体系甚至
@@ -30,7 +36,7 @@
 | --- | --- |
 | `root/usr/share/luci/menu.d/luci-app-plugin-hub.json` | `/usr/share/luci/menu.d/` |
 | `root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json` | `/usr/share/rpcd/acl.d/` |
-| `root/www/luci-static/resources/view/plugin-hub/dashboard2.js` | `/www/luci-static/resources/view/plugin-hub/` |
+| `root/www/luci-static/resources/view/plugin-hub/dashboard3.js` | `/www/luci-static/resources/view/plugin-hub/` |
 
 ## 部署
 
@@ -41,20 +47,21 @@ python -m http.server 18767 --bind 0.0.0.0
 uclient-fetch -q -O /usr/share/luci/menu.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/luci/menu.d/luci-app-plugin-hub.json"
 uclient-fetch -q -O /usr/share/rpcd/acl.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json"
 mkdir -p /www/luci-static/resources/view/plugin-hub
-uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard2.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard2.js"
+uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard3.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard3.js"
 rm -f /tmp/luci-indexcache*   # 刷新 LuCI 菜单缓存
 /etc/init.d/rpcd restart      # 加载新 ACL
 ```
 
-浏览器 Ctrl+F5。部署过旧版（`dashboard.js`）的先删除旧文件：
+浏览器 Ctrl+F5。部署过旧版（`dashboard.js` / `dashboard2.js`）的先删除旧文件：
 
 ```sh
-rm -f /www/luci-static/resources/view/plugin-hub/dashboard.js
+rm -f /www/luci-static/resources/view/plugin-hub/dashboard.js \
+      /www/luci-static/resources/view/plugin-hub/dashboard2.js
 ```
 
-增删按钮：编辑 `dashboard2.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
+增删按钮：编辑 `dashboard3.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
 
-- `init: '服务名'`：状态徽标的探测对象（`/etc/init.d/` 下的脚本名）。文件管理器按手工安装方式可能没有 init 脚本（如用 rc.local 启动），此时会显示「未安装」，按实际情况改掉或删掉 `init` 字段即可；
+- `init: '服务名'`：状态徽标与快捷操作的探测对象（`/etc/init.d/` 下的脚本名）。文件管理器按手工安装方式可能没有 init 脚本（如用 rc.local 启动），此时会显示「未安装」且不出现快捷操作，按实际情况改掉或删掉 `init` 字段即可；
 - `lanOnly: true`：给独立端口卡片加「仅限局域网」徽标。
 
 PassWall/插件升级不会覆盖本页面；卸载直接删除上面三个文件并清缓存。

@@ -3,10 +3,20 @@
 		"description": "Plugin hub service status probing (init scripts + procd service list)",
 		"read": {
 			"ubus": {
-				"service": [ "list" ]
+				"service": [ "list" ],
+				"file": [ "exec" ]
 			},
 			"file": {
-				"/etc/init.d": [ "list" ]
+				"/etc/init.d": [ "list" ],
+				"/etc/init.d/*": [ "exec" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"file": [ "exec" ]
+			},
+			"file": {
+				"/etc/init.d/*": [ "exec" ]
 			}
 		}
 	}

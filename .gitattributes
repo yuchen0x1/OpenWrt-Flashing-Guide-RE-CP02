@@ -1,0 +1,5 @@
+# 路由器端 shell 脚本必须以 LF 检出：CRLF 会让 BusyBox ash 在第一行
+# `set -u` 就报 `Illegal option` 直接退出，而 Windows 上 core.autocrlf=true
+# 默认会把文本文件检出成 CRLF（本仓库主要面向 Windows 用户 clone 后 scp 上机）。
+*.sh text eol=lf
+luci-app-ota-check/root/usr/bin/ota-check-ui text eol=lf

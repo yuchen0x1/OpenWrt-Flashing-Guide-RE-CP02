@@ -4,7 +4,7 @@
 		"order": 50,
 		"action": {
 			"type": "view",
-			"path": "ota-check/update-center3"
+			"path": "ota-check/update-center4"
 		},
 		"depends": {
 			"acl": [ "ota-check" ],

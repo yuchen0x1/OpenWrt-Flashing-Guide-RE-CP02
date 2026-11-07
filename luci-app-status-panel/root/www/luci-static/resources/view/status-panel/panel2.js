@@ -9,16 +9,33 @@
  * - 物理网口状态图：按 network.device status 实时渲染 WAN/LAN 各口的
  *   连接/速率，插拔网线 5 秒内反映到页面；
  * - 实时资源：CPU 占用（/proc/stat 采样差分）、内存占用、负载、
- *   全部物理口合计收发速率（两次轮询差分）。
+ *   全部物理口合计收发速率（两次轮询差分）；
+ * - 温度（1.4.0 起）：读 /sys/class/thermal 下的 thermal_zoneX/temp 取 CPU 温度；
+ * - 无线客户端数（1.4.0 起）：优先读取 network.wireless status 的 stations，
+ *   缺失时调用受 ACL 限制的 iwinfo.assoclist ubus 方法。
  * 端口名按 DSA 命名（wan/lan1..lan4）自动发现，找不到 DSA 口时回退
  * eth0/eth1（旧 swconfig 布局），适配不同固件版本。
  * ACL：见 root/usr/share/rpcd/acl.d/luci-app-status-panel.json。
+ * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 panel.js 更名而来）。
  */
 
 var callDeviceStatus = rpc.declare({
 	object: 'network.device',
 	method: 'status',
 	expect: { '': {} }
+});
+
+var callWirelessStatus = rpc.declare({
+	object: 'network.wireless',
+	method: 'status',
+	expect: { '': {} }
+});
+
+var callIwinfoAssoclist = rpc.declare({
+	object: 'iwinfo',
+	method: 'assoclist',
+	params: [ 'device' ],
+	expect: { results: [] }
 });
 
 var callSystemInfo = rpc.declare({
@@ -45,6 +62,12 @@ var PORT_HINTS = [
 ];
 
 var POLL_INTERVAL = 5;
+
+/* 常见 thermal zone 路径，取第一个读到合法值的 */
+var THERMAL_ZONES = [
+	'/sys/class/thermal/thermal_zone0/temp',
+	'/sys/class/thermal/thermal_zone1/temp'
+];
 
 function fmtUptime(sec) {
 	sec = Math.max(0, Math.floor(sec || 0));
@@ -122,6 +145,27 @@ function pickPorts(devices) {
 	return primary.length ? primary : fallback;
 }
 
+/* 从 network.wireless status 里取无线接口名列表与已有 stations 数据 */
+function pickWirelessIfaces(wireless) {
+	var list = [];
+	var devices = wireless || {};
+	Object.keys(devices).forEach(function(radio) {
+		var up = devices[radio];
+		if (!up || !up.interfaces) {
+			return;
+		}
+		up.interfaces.forEach(function(itf) {
+			if (itf && itf.ifname) {
+				list.push({
+					name: itf.ifname,
+					stations: Array.isArray(itf.stations) ? itf.stations : null
+				});
+			}
+		});
+	});
+	return list;
+}
+
 function bar(pct) {
 	pct = Math.min(100, Math.max(0, pct || 0));
 	return E('div', { 'class': 'sp-bar' }, [
@@ -166,6 +210,9 @@ return view.extend({
 			'.sp-port.sp-up .sp-name { color: #4ade80; }',
 			'.sp-name { font-weight: 700; font-size: 90%; }',
 			'.sp-meta { font-size: 76%; opacity: .7; text-align: center; }',
+			'.sp-wlan { display: flex; flex-wrap: wrap; gap: 10px; margin: 1em 0; }',
+			'.sp-wlan-chip { padding: 8px 14px; border-radius: 999px; background: rgba(96,165,250,.12); border: 1px solid rgba(96,165,250,.3); font-size: 88%; }',
+			'.sp-wlan-chip b { margin-right: 4px; }',
 			'.sp-bars { display: grid; gap: 10px; margin-top: .6em; }',
 			'.sp-bar { position: relative; height: 22px; border-radius: 8px; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.1); overflow: hidden; }',
 			'.sp-bar-fill { height: 100%; background: linear-gradient(90deg,#8b5cf6,#6366f1,#22d3ee); border-radius: 8px 0 0 8px; transition: width .6s ease; }',
@@ -182,7 +229,7 @@ return view.extend({
 		return E([], [
 			E('h2', {}, _('状态面板')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('实时硬件监控：物理网口连接状态、CPU / 内存占用与总吞吐速率，每 5 秒自动刷新。'
+				_('实时硬件监控：物理网口连接状态、CPU / 内存占用、总吞吐速率、温度与无线客户端数，每 5 秒自动刷新。'
 				+ '网口图数据来自 network.device status（netifd），插拔网线约 5 秒内反映到页面。')),
 			E('div', { 'class': 'sp-cards' }, [
 				E('div', { 'class': 'sp-card' }, [
@@ -202,6 +249,11 @@ return view.extend({
 				E('div', { 'class': 'sp-card' }, [
 					E('h5', {}, _('负载（1/5/15 分钟）')),
 					E('div', { 'class': 'sp-val', 'id': 'sp-load' }, '…')
+				]),
+				E('div', { 'class': 'sp-card' }, [
+					E('h5', {}, _('温度')),
+					E('div', { 'class': 'sp-val', 'id': 'sp-temp' }, '…'),
+					E('div', { 'class': 'sp-sub' }, _('CPU / 主芯片'))
 				])
 			]),
 			E('div', { 'class': 'cbi-section' }, [
@@ -211,6 +263,11 @@ return view.extend({
 				E('p', { 'style': 'opacity:.6;font-size:85%;margin:0' },
 					_('合计吞吐 ↓ '), E('span', { 'id': 'sp-rx', 'style': 'font-weight:700' }, '--'),
 					_('　↑ '), E('span', { 'id': 'sp-tx', 'style': 'font-weight:700' }, '--'))
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('div', { 'class': 'cbi-section-title' }, _('无线客户端')),
+				E('div', { 'class': 'sp-wlan', 'id': 'sp-wlan' },
+					E('div', { 'class': 'sp-meta' }, _('正在读取无线状态…')))
 			]),
 			E('div', { 'class': 'cbi-section' }, [
 				E('div', { 'class': 'cbi-section-title' }, _('实时资源')),
@@ -230,10 +287,13 @@ return view.extend({
 		return Promise.all([
 			L.resolveDefault(callDeviceStatus(), {}),
 			L.resolveDefault(callSystemInfo(), {}),
-			fs.read('/proc/stat').catch(function() { return ''; })
+			L.resolveDefault(callWirelessStatus(), {}),
+			fs.read('/proc/stat').catch(function() { return ''; }),
+			readThermal()
 		]).then(function(res) {
 			var devices = res[0] || {};
 			var sys = res[1] || {};
+			var wireless = res[2] || {};
 
 			var uptimeEl = document.getElementById('sp-uptime');
 			if (uptimeEl) {
@@ -247,6 +307,12 @@ return view.extend({
 				}).join(' / ');
 			}
 
+			var tempEl = document.getElementById('sp-temp');
+			if (tempEl) {
+				tempEl.textContent = (res[4] === null || res[4] === undefined)
+					? '--' : (res[4] + '°C');
+			}
+
 			/* 物理网口图 + 合计吞吐（与上次轮询差分） */
 			var ports = pickPorts(devices);
 			var portsEl = document.getElementById('sp-ports');
@@ -254,7 +320,7 @@ return view.extend({
 				portsEl.innerHTML = '';
 				if (!ports.length) {
 					portsEl.appendChild(E('div', { 'class': 'sp-meta' },
-						_('未发现 wan/lan1..4/eth0/eth1 物理口，设备命名可能不同（可编辑 panel.js 的 PORT_HINTS 适配）')));
+						_('未发现 wan/lan1..4/eth0/eth1 物理口，设备命名可能不同（可编辑 panel2.js 的 PORT_HINTS 适配）')));
 				} else {
 					ports.forEach(function(p) {
 						var up = !!p.info.up && p.info.carrier !== false;
@@ -286,11 +352,38 @@ return view.extend({
 			}
 			view._trafficPrev = { rx: rxNow, tx: txNow };
 
+			/* 无线客户端数：优先使用 status.stations，缺失时查询 iwinfo ubus */
+			var wlanEl = document.getElementById('sp-wlan');
+			if (wlanEl) {
+				var ifaces = pickWirelessIfaces(wireless);
+				wlanEl.innerHTML = '';
+				if (!ifaces.length) {
+					wlanEl.appendChild(E('div', { 'class': 'sp-meta' },
+						_('未发现无线接口，或 network.wireless status 无接口数据')));
+				} else {
+					ifaces.forEach(function(iface) {
+						var chip = E('div', { 'class': 'sp-wlan-chip' },
+							E('b', {}, iface.name), '…');
+						wlanEl.appendChild(chip);
+						var count = iface.stations ? Promise.resolve(iface.stations.length)
+							: countWirelessClients(iface.name);
+						count.then(function(n) {
+							if (chip.parentNode) {
+								chip.innerHTML = '';
+								chip.appendChild(E('b', {}, iface.name));
+								chip.appendChild(document.createTextNode(
+									n === null ? _(' --') : (' ' + n + ' 台')));
+							}
+						});
+					});
+				}
+			}
+
 			/* CPU：/proc/stat 差分 */
 			var cpuEl = document.getElementById('sp-cpu');
 			if (cpuEl) {
-				var cpu = cpuUsageFromStat(view._cpuPrev, res[2]);
-				view._cpuPrev = res[2] || view._cpuPrev;
+				var cpu = cpuUsageFromStat(view._cpuPrev, res[3]);
+				view._cpuPrev = res[3] || view._cpuPrev;
 				cpuEl.innerHTML = '';
 				cpuEl.appendChild(cpu === null
 					? E('div', { 'class': 'sp-meta' }, '…')
@@ -317,3 +410,37 @@ return view.extend({
 		});
 	}
 });
+
+/* 通过 iwinfo ubus assoclist 统计客户端；未安装或失败返回 null */
+function countWirelessClients(ifname) {
+	return callIwinfoAssoclist(ifname).then(function(res) {
+		var list = Array.isArray(res) ? res : (res && res.results);
+		return Array.isArray(list) ? list.length : null;
+	}).catch(function() {
+		return null;
+	});
+}
+
+/* 依次读 thermal zone，返回第一个合法摄氏温度（毫度 /1000），全部失败返回 null */
+function readThermal() {
+	var idx = 0;
+	function next() {
+		if (idx >= THERMAL_ZONES.length) {
+			return Promise.resolve(null);
+		}
+		var path = THERMAL_ZONES[idx++];
+		return fs.read(path).then(function(txt) {
+			var v = parseInt(String(txt || '').trim(), 10);
+			if (!isNaN(v) && v > 0) {
+				var c = (v / 1000);
+				if (c > 0 && c < 150) {
+					return Promise.resolve(c);
+				}
+			}
+			return next();
+		}).catch(function() {
+			return next();
+		});
+	}
+	return next();
+}

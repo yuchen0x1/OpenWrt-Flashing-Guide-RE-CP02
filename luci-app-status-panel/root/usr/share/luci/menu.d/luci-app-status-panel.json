@@ -4,7 +4,7 @@
 		"order": 5,
 		"action": {
 			"type": "view",
-			"path": "status-panel/panel"
+			"path": "status-panel/panel2"
 		},
 		"depends": {
 			"acl": [ "status-panel" ]

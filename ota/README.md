@@ -56,9 +56,9 @@ echo '0 9 * * * /usr/bin/ota-check >/dev/null 2>&1' >> /etc/crontabs/root
 
 1. 确定新版本镜像存在且官方可用（例如 ImmortalWrt 新点版本发布后）。
 2. 下载 `immortalwrt-<版本>-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin`，计算 SHA256：`sha256sum 文件名` 或 Windows `certutil -hashfile 文件名 SHA256`。
-3. **自托管（可选）**：把 `.bin` 放进本目录 `ota/files/`，URL 写 Gitee raw 地址（`https://gitee.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/raw/main/ota/files/<文件名>`）。注意 Gitee 单文件上限 100MB，且把固件二进制提交进仓库与根 README「仓库不含固件二进制」的策略冲突——二选一后请同步更新对应说明。默认方案是 URL 指向 ImmortalWrt 官方 CDN，仓库只存版本号与哈希。
+3. **自托管（可选）**：把 `.bin` 放进本目录 `ota/files/`，URL 写 GitHub raw 地址（`https://raw.githubusercontent.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/main/ota/files/<文件名>`）。注意 GitHub 单文件上限 100MB（超限会被拒推），且把固件二进制提交进仓库与根 README「仓库不含固件二进制」的策略冲突——二选一后请同步更新对应说明。默认方案是 URL 指向 ImmortalWrt 官方 CDN，仓库只存版本号与哈希。
 4. 编辑 `manifest.json`：`latest` 指向新版本，`releases[]` 追加新条目（version、notes、url、sha256、size）。
-5. 提交并推送到 Gitee。路由器下次检测即感知新版本。
+5. 提交并推送到 GitHub。路由器下次检测即感知新版本；若使用 Gitee 备用源，请同步镜像对应分支。
 
 版本号直接沿用上游固件版本（如 `24.10.6`），不另起炉灶，避免两套版本号互相打架。检测脚本只比较 `major.minor.patch` 数字段。
 

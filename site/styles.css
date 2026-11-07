@@ -44,6 +44,8 @@
 .doc-pager small { font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
 .doc-pager b { font-size:12px; color:var(--text); }
 .search-result .snippet { display:block; margin-top:5px; color:var(--muted); font:11px/1.55 var(--mono); }
+.search-group-title { margin:10px 0 2px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cyan); opacity:.85; }
+.search-group-title:first-child { margin-top:0; }
 .search-result mark { background:rgba(120,223,245,.22); color:var(--cyan); border-radius:2px; padding:0 1px; }
 .light-mode .modal-body ul,.light-mode .modal-body ol,.light-mode .modal-body ul li,.light-mode .modal-body ol li { color:#36545b; }
 .light-mode .code-block .code-copy { background:rgba(255,255,255,.8); }

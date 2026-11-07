@@ -174,8 +174,15 @@ function titleFor(path) {
   const item = docs.find(doc => doc[3] === normalizeDocPath(path));
   return item ? item[1] : path === '../firmware/README.md' ? 'Firmware 文件说明' : '文档';
 }
+function saveCurrentDocProgress() {
+  const bodyEl = $('#modal-body');
+  if (modal.classList.contains('is-open') && bodyEl && currentDocIndex > -1) {
+    writeReadingProgress(docs[currentDocIndex][3], bodyEl.scrollTop);
+  }
+}
 async function openDoc(path) {
   const resolvedPath = normalizeDocPath(path);
+  saveCurrentDocProgress();
   currentDocIndex = docs.findIndex(doc => doc[3] === resolvedPath);
   lastFocusedElement = document.activeElement;
   modal.classList.add('is-open');
@@ -204,16 +211,48 @@ async function openDoc(path) {
       const target = $('#' + button.dataset.toc, $('#modal-body'));
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
-    $('#modal-body').scrollTop = 0;
+    const bodyEl = $('#modal-body');
+    /* 阅读进度持久化：打开时恢复上次滚动位置（若在合法范围内） */
+    const saved = readReadingProgress(resolvedPath);
+    bodyEl.scrollTop = 0;
+    if (saved > 0 && saved < bodyEl.scrollHeight) {
+      bodyEl.scrollTop = saved;
+    }
   } catch (error) {
     $('#modal-body').innerHTML = '<p>无法读取文档：' + escapeHtml(error.message) + '</p>';
   }
 }
 function closeDoc() {
+  /* 关闭前记录当前滚动位置（按文档路径持久化） */
+  const bodyEl = $('#modal-body');
+  if (bodyEl && currentDocIndex > -1) {
+    writeReadingProgress(docs[currentDocIndex][3], bodyEl.scrollTop);
+  }
   modal.classList.remove('is-open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
   if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus();
+}
+function readingStoreKey(path) {
+  return 're-cp-02-progress:' + path;
+}
+function readReadingProgress(path) {
+  try {
+    return parseInt(localStorage.getItem(readingStoreKey(path)) || '0', 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+function writeReadingProgress(path, top) {
+  try {
+    if (typeof top === 'number' && top > 0) {
+      localStorage.setItem(readingStoreKey(path), String(Math.round(top)));
+    } else {
+      localStorage.removeItem(readingStoreKey(path));
+    }
+  } catch {
+    /* 隐私模式/禁用存储下无法持久化，忽略 */
+  }
 }
 function showToast(message) {
   toast.textContent = message;
@@ -304,9 +343,16 @@ async function getSearchIndex() {
   searchIndexPromise = Promise.all(docs.map(async doc => {
     try {
       const response = await fetch(doc[3]);
-      return { doc, body: response.ok ? await response.text() : '' };
+      const body = response.ok ? await response.text() : '';
+      /* 逐行索引，附带行号便于定位；同一文档内的命中按行序收集 */
+      const lines = body.replace(/\r/g, '').split('\n');
+      const entries = [];
+      for (let i = 0; i < lines.length; i++) {
+        entries.push({ line: lines[i], lower: lines[i].toLowerCase(), no: i + 1 });
+      }
+      return { doc, entries };
     } catch {
-      return { doc, body: '' };
+      return { doc, entries: [] };
     }
   }));
   return searchIndexPromise;
@@ -321,19 +367,28 @@ searchInput.addEventListener('input', async () => {
   searchResults.innerHTML = '<p class="search-hint">正在搜索…</p>';
   const index = await getSearchIndex();
   if (requestId !== searchRequestId) return;
-  const matches = [];
+  /* 每篇文档收集命中行（最多 6 条），再整体拼接，按文档顺序排列 */
+  const perDocLimit = 6;
+  const totalLimit = 30;
+  const groups = [];
+  let total = 0;
   for (const item of index) {
-    const lines = item.body.replace(/\r/g, '').split('\n');
-    for (const line of lines) {
-      if (line.toLowerCase().includes(term)) {
-        matches.push({ doc: item.doc, snippet: snippetFor(line, term) });
-        if (matches.length >= 24) break;
+    if (total >= totalLimit) break;
+    const hits = [];
+    for (const entry of item.entries) {
+      if (entry.lower.includes(term)) {
+        hits.push(snippetFor(entry.line, term));
+        if (hits.length >= perDocLimit) break;
       }
     }
-    if (matches.length >= 24) break;
+    if (!hits.length) continue;
+    const groupHead = '<div class="search-group-title">' + escapeHtml(item.doc[1]) + '</div>';
+    const groupBody = hits.map(s => '<button class="search-result" data-doc="' + item.doc[3] + '" type="button"><span class="snippet">' + s + '</span></button>').join('');
+    groups.push(groupHead + groupBody);
+    total += hits.length;
   }
-  searchResults.innerHTML = matches.length
-    ? matches.map(match => '<button class="search-result" data-doc="' + match.doc[3] + '" type="button"><strong>' + match.doc[1] + '</strong><span class="snippet">' + match.snippet + '</span></button>').join('')
+  searchResults.innerHTML = groups.length
+    ? groups.join('') + (total >= totalLimit ? '<p class="search-hint">已展示前 ' + total + ' 条，请输入更具体关键词缩小范围</p>' : '')
     : '<p class="search-hint">没有找到匹配内容</p>';
   $$('.search-result').forEach(element => element.addEventListener('click', () => { closeSearch(); openDoc(element.dataset.doc); }));
 });

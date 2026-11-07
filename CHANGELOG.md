@@ -1,3 +1,13 @@
+## 1.4.0 - 2026-11-08
+
+- 状态面板升级（`panel.js` → `panel2.js`，同步 menu.d）：新增温度卡片（读 `/sys/class/thermal/thermal_zoneX/temp`，毫度转摄氏度，无 thermal zone 显示 `--`）与无线客户端数（优先取 `network.wireless status` 各接口 `stations`，固件未提供时走 `iwinfo.assoclist` ubus 兜底）。ACL 收窄为只读 ubus + 文件读取，**不再让页面执行外部 `iwinfo` 命令**。
+- 插件中心升级（`dashboard2.js` → `dashboard3.js`，同步 menu.d）：已安装服务卡片底部新增「启动 / 停止 / 重启」，`fs.exec` 调 `/etc/init.d/<name> <action>`，完成后自动重读状态徽标；操作按钮从卡片链接里拆出（链接改为卡片内 `.hub-card-link`），杜绝点按钮误触发整卡跳转；`acl.d` 增加 `/etc/init.d/*` 的 `file exec`。
+- 更新中心升级（`update-center3.js` → `update-center4.js`，同步 menu.d）：更新源可切 GitHub（主源）/ Gitee（备用），选择写入 `re-cp-02-ota-source` 刷新后保留；`scripts/ota-check.sh` 新增 `--source gitee|github`（默认 GitHub raw，Gitee 仅作备用），`ota-check-ui` 透传参数，日志标注实际命中的源。
+- 阅读站点：正文搜索改为按文档分组（每篇最多 6 条、总共 30 条，触顶提示缩小关键词），搜索索引逐行缓存小写副本，消除每次输入重复 `toLowerCase()`；阅读进度在翻页与关闭两条路径都会保存（此前点「下一篇」会丢掉当前文档的滚动位置）。
+- 主仓库链接统一到 GitHub：README clone 地址、站点历史/个人固件卡片与 Footer、`ota/README.md` 自托管 raw 地址与推送说明；Gitee 只保留为 OTA 备用源。
+- 修复：新增 `.gitattributes` 强制 `*.sh` 与 `ota-check-ui` 按 LF 检出——Windows `core.autocrlf=true` 默认把文本检出成 CRLF，`scp` 上机会让 BusyBox ash 在首行 `set -u` 报 `Illegal option` 直接退出；同时把工作区已变成 CRLF 的 4 个脚本归一回 LF。
+- 健康检查 `project-health-check.ps1` 新增全部 `.sh` 的 `bash -n` 语法校验与可执行位检查（PowerShell 7+ 用 `GetUnixFileMode`，5.1 下降级 SKIP）。
+
 ## 1.3.0 - 2026-11-06
 
 - 新增 `luci-app-status-panel`（状态 → 状态面板）：iStoreOS 风格硬件监控页——物理网口状态图（wan/lan1..4 自动发现，回退 eth0/eth1，绿光=已连接带协商速率，5 秒轮询）、CPU 占用（/proc/stat 差分）、内存进度条、负载与全部物理口合计收发速率；只读，ubus/file 调用全部在 ACL 白名单内（`admin/status/status-panel`，order 5）。

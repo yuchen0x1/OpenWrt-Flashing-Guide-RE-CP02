@@ -15,19 +15,24 @@
 #
 # 下载重试次数（弱网可调大，默认 3 次）：OTA_FETCH_RETRIES=5 ota-check --download
 #
+# 更新源：默认 GitHub raw；网络不可达时可用 --source gitee 切换备用源。
+#   ota-check --source github                用 GitHub 更新源检查
+#   也可用环境变量 OTA_MANIFEST_URL 直接指定任意 manifest URL。
+#
 # 并发锁：同一时间只允许一个 ota-check 运行（运行锁 $OTA_TMP/ota-check.lock，
 # 防止两个进程同时写固定路径的 manifest / 镜像互相截断；进程正常退出或被杀后，
 # 下一次运行会自动接管并清理残留锁）
 
 set -u
 
-OTA_MANIFEST_URL="${OTA_MANIFEST_URL:-https://gitee.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/raw/main/ota/manifest.json}"
+OTA_MANIFEST_URL="${OTA_MANIFEST_URL:-}"
 OTA_TMP="${OTA_TMP:-/tmp}"
 OTA_ALLOW_FAKE="${OTA_ALLOW_FAKE:-0}"
 
 MODE="check"
 WANT_VERSION=""
 SYSUPGRADE_ARGS=""
+OTA_SOURCE="github"
 
 # 用法文本取自文件头部注释块，按注释块边界截取（注释增删不会导致错位）
 usage() {
@@ -42,11 +47,27 @@ while [ $# -gt 0 ]; do
     --version) [ $# -ge 2 ] || { echo "--version 需要参数" >&2; exit 2; }; WANT_VERSION="$2"; shift ;;
     --sysupgrade-args) [ $# -ge 2 ] || { echo "--sysupgrade-args 需要参数" >&2; exit 2; }; SYSUPGRADE_ARGS="$2"; shift ;;
     --sysupgrade-args=*) SYSUPGRADE_ARGS="${1#*=}" ;;
+    --source) [ $# -ge 2 ] || { echo "--source 需要参数 (gitee|github)" >&2; exit 2; }; OTA_SOURCE="$2"; shift ;;
+    --source=*) OTA_SOURCE="${1#*=}" ;;
     -h|--help) usage ;;
     *) echo "未知参数: $1（-h 查看用法）" >&2; exit 2 ;;
   esac
   shift
 done
+
+# 解析 --source 与/或 OTA_MANIFEST_URL：未显式给 URL 时按来源选默认更新源
+case "$OTA_SOURCE" in
+  github) OTA_SOURCE_NAME="GitHub" ;;
+  gitee) OTA_SOURCE_NAME="Gitee" ;;
+  *) echo "未知更新源: $OTA_SOURCE（可选 gitee | github）" >&2; exit 2 ;;
+esac
+if [ -z "$OTA_MANIFEST_URL" ]; then
+  if [ "$OTA_SOURCE" = "github" ]; then
+    OTA_MANIFEST_URL="https://raw.githubusercontent.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/main/ota/manifest.json"
+  else
+    OTA_MANIFEST_URL="https://gitee.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/raw/main/ota/manifest.json"
+  fi
+fi
 
 log() {
   echo "[ota-check] $*" >&2
@@ -264,7 +285,7 @@ parsed_field() {
 
 MANIFEST_FILE="$OTA_TMP/ota-manifest.json"
 acquire_lock
-log "拉取更新源: $OTA_MANIFEST_URL"
+log "拉取更新源 ($OTA_SOURCE_NAME): $OTA_MANIFEST_URL"
 fetch_url "$OTA_MANIFEST_URL" "$MANIFEST_FILE" || die "拉取 manifest 失败（检查网络；HTTPS 报 TLS 错误时安装 libustream-mbedtls ca-bundle）"
 
 PARSED_RAW="$OTA_TMP/ota-parsed.env"

@@ -152,6 +152,44 @@ foreach ($file in $psFiles) {
     }
 }
 
+# sh scripts: syntax + exec permission check (Win32 上 bash 常驻 Git Bash 提供)
+# .sh 脚本语法用 bash -n / sh -n 校验；可执行脚本按仓库约定需保留 +x 权限位。
+$shScripts = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.sh" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+    Sort-Object FullName)
+if (Get-Command bash -ErrorAction SilentlyContinue) {
+    foreach ($file in $shScripts) {
+        $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
+        # Git Bash 的 bash 接受正斜杠路径；反斜杠会被当转义符
+        $posixPath = $file.FullName -replace '\\', '/'
+        $ErrorActionPreference = "Continue"
+        $output = (& bash -n $posixPath 2>&1 | Out-String).TrimEnd()
+        $rc = $LASTEXITCODE
+        $ErrorActionPreference = "Stop"
+        if ($rc -eq 0) {
+            Pass "Bash syntax $relative"
+        } else {
+            Fail "Bash syntax $relative :: $output"
+        }
+    }
+} else {
+    Skip "bash not found; shell syntax checks skipped ($($shScripts.Count) files)"
+}
+foreach ($file in $shScripts) {
+    $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
+    # GetUnixFileMode 仅 PS 7+；PowerShell 5.1 下改为 SKIP（Windows 端无法可靠读 unix 权限位）
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+        $mode = [System.IO.File]::GetUnixFileMode($file.FullName)
+        if (($mode -band [System.IO.UnixFileMode]::UserExecute) -ne 0) {
+            Pass "Exec perm $relative"
+        } else {
+            Fail "Exec perm $relative (缺少 +x；仓库脚本按约定需可执行)"
+        }
+    } else {
+        Skip "Exec perm $relative (需要 PowerShell 7+；PS 5.1 无法读 unix 权限位)"
+    }
+}
+
 $manifestPath = Join-Path $root "firmware/SHA256SUMS.txt"
 $manifestLines = @(Get-Content -Encoding UTF8 $manifestPath | Where-Object { $_.Trim() -and $_ -notmatch '^\s*#' })
 foreach ($line in $manifestLines) {

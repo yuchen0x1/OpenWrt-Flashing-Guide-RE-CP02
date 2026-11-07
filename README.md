@@ -60,8 +60,8 @@
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
 ├── luci-app-ota-check/               ← 自制 LuCI 应用：固件更新源检测页（配合 ota-check.sh）
-├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页（带服务状态徽标）
-├── luci-app-status-panel/            ← 自制 LuCI 应用：状态面板（网口状态图 + 实时资源）
+├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页（状态徽标 + 服务启停）
+├── luci-app-status-panel/            ← 自制 LuCI 应用：状态面板（网口状态图 + 温度/无线/实时资源）
 ├── luci-theme-glass/                 ← 自制 LuCI 主题（深浅双模式，依赖 luci-theme-argon）
 ├── Tftpd64/                          ← TFTP 辅助材料
 ├── SECURITY.md                       ← 敏感信息与安全报告说明
@@ -83,7 +83,7 @@
 | 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
 | 辅助脚本（scripts/） | 更新检测、刷机后清理、一键 eMMC 扩容、网络急救、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
-| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页、带服务状态徽标的插件中心、iStoreOS 风格状态面板与深浅双模式 Glass 主题，部署方式见各自 README |
+| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页（GitHub 主源 / Gitee 备用可切换）、可启停服务的插件中心、iStoreOS 风格状态面板（含温度与无线客户端）与深浅双模式 Glass 主题，部署方式见各自 README |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
 ---
@@ -91,7 +91,7 @@
 ## 获取本仓库
 
 ```sh
-git clone https://gitee.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02.git
+git clone https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02.git
 cd OpenWrt-Flashing-Guide-RE-CP02
 ```
 
@@ -276,7 +276,7 @@ http://<路由器地址>:2017/
 
 ### 工具四：自有固件更新源（OTA 检测）
 
-以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6（推荐/latest）与 23.05.7，另收录 25.12.2 新大版本分支供手动尝鲜、不参与自动检测提示，SHA256 均取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。详见 [ota/README.md](ota/README.md)。
+以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6（推荐/latest）与 23.05.7，另收录 25.12.2 新大版本分支供手动尝鲜、不参与自动检测提示，SHA256 均取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。更新源默认 GitHub raw，网络不通时用 `--source gitee` 切备用源（更新中心页面顶部也可切换并记住选择）。详见 [ota/README.md](ota/README.md)。
 
 ```sh
 # 路由器上安装后运行

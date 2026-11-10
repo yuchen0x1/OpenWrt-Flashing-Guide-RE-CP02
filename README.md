@@ -28,6 +28,7 @@
 10. [高频问答](#高频问答)
 11. [参与贡献与维护约定](#参与贡献与维护约定)
 12. [交流与反馈](#交流与反馈)
+13. [Star 趋势](#star-趋势)
 
 ---
 
@@ -40,7 +41,8 @@
 ├── docs/                             ← 10 篇刷机、配置、升级与排障文档（主线内容）
 ├── site/                             ← 零构建静态阅读站点
 │   ├── index.html
-│   ├── app.js
+│   ├── app.js                        ← 交互：弹窗、搜索、进度、主题
+│   ├── markdown.js                   ← Markdown 渲染器（纯函数，可单测）
 │   ├── styles.css
 │   └── assets/                       ← 站点图片资源
 ├── firmware/
@@ -56,6 +58,7 @@
 │   ├── project-health-check.ps1      ← 本地站点与项目健康检查
 │   ├── check-consistency.js          ← 官方基线版本/哈希跨文件一致性
 │   ├── check-ota-view.js             ← 更新中心视图逻辑回归（版本按钮按清单生成）
+│   ├── check-site-markdown.js        ← Markdown 渲染器回归（含 10 篇文档全量渲染）
 │   ├── check-site-interaction.js     ← 阅读站点交互回归（headless 浏览器）
 │   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
@@ -426,6 +429,15 @@ node scripts/check-site-interaction.js http://127.0.0.1:18793/site/
 - **Telegram**：[https://t.me/lenmoC](https://t.me/lenmoC)
 
 提反馈时请注明：设备型号、当前系统、当前路由器 IP、电脑系统、连接方式，附上已尝试过的命令输出，并**先删除所有敏感信息**。
+
+## Star 趋势
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02&type=Date&theme=dark">
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02&type=Date" width="800">
+</picture>
+
+> 图表由 [star-history.com](https://star-history.com/#yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02&Date) 按 GitHub API 实时生成，深色模式自动切换配色。仓库刚起步时曲线可能接近水平，属正常现象。
 
 ## 许可证
 

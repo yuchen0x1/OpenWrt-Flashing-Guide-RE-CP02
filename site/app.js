@@ -14,22 +14,24 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const modal = $('#doc-modal');
 const toast = $('#toast');
-const fence = String.fromCharCode(96).repeat(3);
+/* Markdown 渲染器已抽到 site/markdown.js（可单测），这里只做取值与前置断言 */
+if (!window.SiteMarkdown) {
+  throw new Error('site/markdown.js 未加载：请确认 index.html 里它在 app.js 之前');
+}
+const markdown = window.SiteMarkdown;
+const escapeHtml = markdown.escapeHtml;
+const stripMarkdown = markdown.stripMarkdown;
+const normalizeDocPath = markdown.normalizeDocPath;
+const isDocPath = markdown.isDocPath;
+const inlineMarkdown = markdown.inlineMarkdown;
+const renderMarkdown = markdown.renderMarkdown;
+
 let lastFocusedElement = null;
 let searchIndexPromise = null;
 let searchRequestId = 0;
 let currentDocIndex = -1;
 let docRequestId = 0;
 
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-}
-function stripMarkdown(value) {
-  return value
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1');
-}
 function snippetFor(line, term) {
   const plain = stripMarkdown(line).trim();
   const index = plain.toLowerCase().indexOf(term);
@@ -42,135 +44,6 @@ function snippetFor(line, term) {
   return before + hit + after;
 }
 
-function normalizeDocPath(path) {
-  return path.startsWith('docs/') ? '../' + path : path;
-}
-function isDocPath(path) {
-  const normalized = normalizeDocPath(path);
-  return normalized.startsWith('../docs/') && normalized.endsWith('.md');
-}
-function inlineMarkdown(value) {
-  let html = escapeHtml(value)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
-      const target = href.trim();
-      if (isDocPath(target)) {
-        return '<a class="text-link" href="#" data-doc-link="' + escapeHtml(normalizeDocPath(target)) + '">' + label + ' ↗</a>';
-      }
-      if (/^(https?:\/\/|mailto:)/i.test(target)) {
-        return '<a class="text-link" href="' + escapeHtml(target) + '" target="_blank" rel="noreferrer">' + label + ' ↗</a>';
-      }
-      return label;
-    });
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  return html;
-}
-function renderMarkdown(source) {
-  const lines = source.replace(/\r/g, '').split('\n');
-  let html = '';
-  let toc = [];
-  let inCode = false;
-  let code = [];
-  let listType = null;
-  let section = 0;
-  let table = null;
-  function closeTable() {
-    if (table) {
-      html += '</tbody></table>';
-      table = null;
-    }
-  }
-  function renderTableRow(line, header = false) {
-    const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
-    return '<tr>' + cells.map(cell => '<' + (header ? 'th' : 'td') + '>' + inlineMarkdown(cell) + '</' + (header ? 'th' : 'td') + '>').join('') + '</tr>';
-  }
-
-  function closeList() {
-    if (listType) {
-      html += '</' + listType + '>';
-      listType = null;
-    }
-  }
-  function openList(type) {
-    if (listType !== type) {
-      closeList();
-      listType = type;
-      html += '<' + type + '>';
-    }
-  }
-  for (const line of lines) {
-    if (line.startsWith(fence)) {
-      if (inCode) {
-        const raw = code.join('\n');
-        html += '<div class="code-block"><button class="code-copy" type="button" data-copy="' + escapeHtml(raw) + '" aria-label="复制代码">复制</button><pre><code>' + escapeHtml(raw) + '</code></pre></div>';
-        code = [];
-      } else {
-        code = [];
-      }
-      inCode = !inCode;
-      continue;
-    }
-    if (inCode) {
-      code.push(line);
-    } else if (!line.trim()) {
-      closeTable();
-      closeList();
-    } else if (line.startsWith('### ')) {
-      closeTable();
-      closeList();
-      html += '<h3>' + inlineMarkdown(line.slice(4)) + '</h3>';
-    } else if (line.startsWith('## ')) {
-      closeTable();
-      closeList();
-      toc.push({ id: 'sec-' + section, title: stripMarkdown(line.slice(3)) });
-      html += '<h2 id="sec-' + section + '">' + inlineMarkdown(line.slice(3)) + '</h2>';
-      section += 1;
-    } else if (line.startsWith('# ')) {
-      closeTable();
-      closeList();
-      html += '<h1>' + inlineMarkdown(line.slice(2)) + '</h1>';
-    } else if (line.startsWith('> ')) {
-      closeTable();
-      closeList();
-      html += '<blockquote>' + inlineMarkdown(line.slice(2)) + '</blockquote>';
-    } else if (/^[-*] /.test(line)) {
-      closeTable();
-      openList('ul');
-      html += '<li>' + inlineMarkdown(line.slice(2)) + '</li>';
-    } else if (/^\d+\. /.test(line)) {
-      closeTable();
-      openList('ol');
-      html += '<li>' + inlineMarkdown(line.replace(/^\d+\. /, '')) + '</li>';
-    } else if (line.trim() === '---') {
-      closeTable();
-      closeList();
-      html += '<hr>';
-    } else if (/^\|.*\|$/.test(line) && /^\|?\s*:?-{3,}/.test(line.replace(/^[|\s]*/, ''))) {
-      if (table) table.headerDone = true;
-    } else if (/^\|.*\|$/.test(line)) {
-      if (!table) {
-        table = { headerDone: false };
-        html += '<table><thead>' + renderTableRow(line, true) + '</thead><tbody>';
-      } else if (!table.headerDone) {
-        table.headerDone = true;
-      } else {
-        html += renderTableRow(line);
-      }
-    } else {
-      closeTable();
-      closeList();
-      html += '<p>' + inlineMarkdown(line) + '</p>';
-    }
-
-  }
-  closeTable();
-  closeList();
-  if (inCode && code.length) {
-    const raw = code.join('\n');
-    html += '<div class="code-block"><button class="code-copy" type="button" data-copy="' + escapeHtml(raw) + '" aria-label="复制代码">复制</button><pre><code>' + escapeHtml(raw) + '</code></pre></div>';
-  }
-  return { html, toc };
-}
 function titleFor(path) {
   const item = docs.find(doc => doc[3] === normalizeDocPath(path));
   return item ? item[1] : path === '../firmware/README.md' ? 'Firmware 文件说明' : '文档';

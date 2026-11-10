@@ -26,6 +26,14 @@
 .modal-body ol { list-style:decimal; }
 .modal-body ul li,.modal-body ol li { margin:5px 0; color:#b7c9cd; }
 .modal-body h2 { scroll-margin-top:12px; }
+/* 表格：hash 与文件名这两列必然很长，用自动布局 + 可横向滚动撑开，
+   避免文件名从词中间硬折成三行 */
+.modal-body table { width:100%; border-collapse:collapse; margin:14px 0 18px; font-size:12px; display:block; overflow-x:auto; }
+.modal-body table > thead,.modal-body table > tbody { display:table; width:100%; table-layout:auto; }
+.modal-body th,.modal-body td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+.modal-body th { color:var(--muted); font-weight:700; font-size:11px; letter-spacing:.04em; text-transform:uppercase; border-bottom-color:var(--line-bright); white-space:nowrap; }
+.modal-body td { color:#b7c9cd; }
+.modal-body td code { white-space:nowrap; }
 .modal-body hr { border:0; border-top:1px solid var(--line); margin:22px 0; }
 .code-block { position:relative; margin:12px 0; }
 .code-block pre { margin:0; padding:28px 12px 12px; }

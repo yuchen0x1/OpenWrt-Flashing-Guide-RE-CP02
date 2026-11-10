@@ -8,7 +8,7 @@
 </footer>
 </div>
 <script>
-	var luciLocation = {{ ctx.path }};
+	var luciLocation = {{ json(ctx.path) }};
 </script>
 </body>
 </html>

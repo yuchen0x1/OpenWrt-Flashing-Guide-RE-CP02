@@ -1,3 +1,26 @@
+## 1.4.1 - 2026-11-10
+
+- 官方升级资料同步至 OpenWrt 25.12.6：更新 RE-CP-02 的 sysupgrade/initramfs 文件名、官方下载地址与 SHA256，并同步阅读站点展示（哈希已与官方 `sha256sums` 逐字节核对）。
+- 修复 Windows 健康检查误选 WSL `bash.exe` 导致 shell 语法检查失败的问题，优先探测 Git Bash。
+- 修复：`scripts/*.sh` 与 `luci-app-ota-check/root/usr/bin/ota-check-ui` 在 git 索引里是 `100644`，Linux 上无法直接执行、LuCI 的 `fs.exec` 也会失败。已全部改为 `100755`。
+- 健康检查的可执行位检查在 PowerShell 5.1 下改为回落到 `git ls-files -s` 的 mode 位，不再一律 SKIP（此前 6 个脚本的权限问题因此一直未被发现）；检查范围补上无扩展名的 `ota-check-ui`。
+- 修复 docs/05 UPnP 安装命令：25.12 起 `miniupnpd` 拆分为 `miniupnpd-nftables` / `miniupnpd-iptables`，原 `apk add miniupnpd` 必然报「包不存在」。
+- 修复 Glass 主题登录页模板：`footer_login.ut` 的 `luciLocation` 由裸插值改为 `json()` 序列化，避免路径含引号时登录页脚本被截断（1.3.0 只修了 `footer.ut`）。
+- 阅读站点三处修复：文档弹窗打开时焦点落到无 `tabindex` 的遮罩上（实际未聚焦），改为聚焦带 `tabindex="-1"` 的标题；翻页后原按钮被 `innerHTML` 替换导致焦点掉回 body，改为重新聚焦标题；搜索框清空后旧请求仍会回写结果，改为在提前返回前递增请求代次。
+- 更新中心视图按发布约定改名为 `update-center5.js` 并同步 menu.d：版本检测按钮改为按缓存清单动态生成，删掉硬编码的「检测 23.05.7」死按钮（视图渲染在节点挂载前执行，容器改用局部引用而非 `getElementById`）。
+- 安全加固 `scripts/ota-check.sh`：从 manifest 的 `sysupgrade.url` 取末段文件名时增加白名单（拒绝 `..`、绝对路径、含 `/` 或隐藏文件），避免恶意 manifest 让镜像写到 `$OTA_TMP` 之外；文件名不是 `*-squashfs-sysupgrade.bin` 时给出警告。
+- 新增 `scripts/check-consistency.js`：比对 6 个位置的官方基线版本号、哈希、下载链接与校验日期，以及 OTA 清单内部自洽；防止「官方基线只改一半」重演。
+- 新增 `scripts/check-ota-view.js`：用最小桩模拟 LuCI 视图生命周期，断言版本按钮按清单生成、空/非法清单不崩溃、轮询依赖的节点 id 存在。已用旧版 `update-center4.js` 反证（8 项 FAIL）。
+- 新增 `scripts/check-site-interaction.js`：CDP 驱动 headless Edge/Chrome 真实点击，验证弹窗焦点、翻页焦点、Esc 分层关闭与搜索清空竞态。已用 `HEAD` 版 `site/app.js` 反证（3 项 FAIL）。
+- 健康检查新增版本一致性与 OTA 视图逻辑两项，纳入 `SUMMARY`。
+- 新增 `.github/workflows/checks.yml`：只读 CI，覆盖 shell/JS 语法、可执行位、CRLF 检查、版本一致性、OTA 视图逻辑、PassWall 回归、JSON 可解析、menu.d 视图存在性、文档本地链接、站点资源冒烟与站点交互回归。不下载固件、不接触设备。
+- 新增 `luci-app-ota-check/README.md`：补齐该应用一直缺失的部署、校验与卸载步骤（含 `chmod +x`、`rpcd` 重启、缓存清理）。
+- docs/09 新增「从 ImmortalWrt 转官方 OpenWrt 会失去什么」：实测官方 25.12.6 的 feed 不含 `luci-theme-argon` 与 PassWall，转 fork 会导致 Glass 主题失去依赖、PassWall 不可用；附迁移前检查清单与恢复顺序。
+- docs/09 升级后验证修正：`ping -c 4 192.168.1.1` 在路由器上执行是自环，改为 ping 外网 + 从电脑侧验证管理面。
+- 文档占位符与包管理器统一：`ota/README.md` 的 `opkg install` 改 `apk add`（并注明 24.10 设备回退 opkg）、`192.168.2.1` 统一为 `<ROUTER_IP>`，菜单名统一为「更新中心」；theme-patch README 补 argon 版本基线与 `json()` 注意事项。
+
+> 本次发布**未**在真实 RE-CP-02 上验证：三款 LuCI 应用的 ACL/RPC 行为、OTA 下载与刷写、eMMC 扩容、温度与无线数据仍需实机确认。CI 与本地检查只覆盖静态与前端逻辑。
+
 ## 1.4.0 - 2026-11-08
 
 - 状态面板升级（`panel.js` → `panel2.js`，同步 menu.d）：新增温度卡片（读 `/sys/class/thermal/thermal_zoneX/temp`，毫度转摄氏度，无 thermal zone 显示 `--`）与无线客户端数（优先取 `network.wireless status` 各接口 `stations`，固件未提供时走 `iwinfo.assoclist` ubus 兜底）。ACL 收窄为只读 ubus + 文件读取，**不再让页面执行外部 `iwinfo` 命令**。

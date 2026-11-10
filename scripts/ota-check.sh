@@ -362,6 +362,17 @@ if [ "${CURRENT_DISTRO:-unknown}" != "${DISTRO:-ImmortalWrt}" ]; then
 fi
 
 IMG_NAME=$(printf '%s' "$TARGET_URL" | awk -F/ '{print $NF}')
+# 文件名白名单：URL 来自远端 manifest，末段若含 .. 或绝对路径字符会让 IMG_PATH 跳出
+# $OTA_TMP。只接受「字母数字._+-」且不得以 . 开头（排除 . 与 .. 以及隐藏文件）。
+case "$IMG_NAME" in
+  '' | .* | *[!0-9A-Za-z._+-]*)
+    die "manifest 中的镜像文件名不安全: '$IMG_NAME'（只允许字母数字 . _ + -，且不能以 . 开头）"
+    ;;
+esac
+case "$IMG_NAME" in
+  *-squashfs-sysupgrade.bin) : ;;
+  *) log "警告: 镜像文件名不是 *-squashfs-sysupgrade.bin（$IMG_NAME），请确认更新源可信" ;;
+esac
 IMG_PATH="$OTA_TMP/$IMG_NAME"
 
 # 下载前检查 /tmp 剩余空间（/tmp 是内存盘，镜像约 10MB，写满会挤爆运行内存）

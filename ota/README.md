@@ -22,14 +22,14 @@
 
 ## 路由器端使用
 
-**网页方式（推荐）**：安装 `luci-app-ota-check`（文件在仓库 `luci-app-ota-check/root/` 目录，含 menu.d / acl.d / 视图 JS / ota-check-ui 包装器）后，LuCI 的 **系统 → 固件更新源** 页面提供「检测更新」「下载镜像（不刷写）」「检测 23.05.7」按钮，检测结果直接显示在页面上。该应用后端仍调用 `ota-check`；为安全起见网页不提供一键刷写，刷写依然走 SSH 人工确认。
+**网页方式（推荐）**：安装 `luci-app-ota-check`（文件在仓库 `luci-app-ota-check/root/` 目录，含 menu.d / acl.d / 视图 JS / ota-check-ui 包装器）后，LuCI 的 **系统 → 更新中心** 页面提供「检测更新」「下载镜像（不刷写）」，以及按当前清单动态生成的各版本单独检测按钮，检测结果直接显示在页面上。该应用后端仍调用 `ota-check`；为安全起见网页不提供一键刷写，刷写依然走 SSH 人工确认。部署步骤见 [luci-app-ota-check/README.md](../luci-app-ota-check/README.md)。
 
 **命令行方式**：
 
 ```sh
 # 安装（路由器需能访问仓库源；先在电脑上执行）
-scp scripts/ota-check.sh root@192.168.2.1:/usr/bin/ota-check
-ssh root@192.168.2.1 'chmod +x /usr/bin/ota-check'
+scp scripts/ota-check.sh root@<ROUTER_IP>:/usr/bin/ota-check
+ssh root@<ROUTER_IP> 'chmod +x /usr/bin/ota-check'
 
 # 日常：检查是否有更新（只读，写 syslog）
 ota-check
@@ -41,7 +41,7 @@ ota-check --download --version 24.10.6
 ota-check --flash --version 24.10.6 --sysupgrade-args="-n"
 ```
 
-HTTPS 拉取需要 TLS 支持：ImmortalWrt 默认自带 `uclient-fetch`，若提示证书/TLS 错误，安装 `opkg install libustream-mbedtls ca-bundle`，或临时改用 curl。
+HTTPS 拉取需要 TLS 支持：ImmortalWrt 默认自带 `uclient-fetch`，若提示证书/TLS 错误，安装 `apk add libustream-mbedtls ca-bundle`，或临时改用 curl。OTA 检测会在 24.10（opkg）与 25.12（apk）两种包管理器上都运行，因此**在 24.10 设备上把上面的 `apk add` 换成 `opkg install`**。
 
 定时自动检测（每天 9 点检查一次，只记录日志）：
 
@@ -62,6 +62,6 @@ echo '0 9 * * * /usr/bin/ota-check >/dev/null 2>&1' >> /etc/crontabs/root
 
 版本号直接沿用上游固件版本（如 `24.10.6`），不另起炉灶，避免两套版本号互相打架。检测脚本只比较 `major.minor.patch` 数字段。
 
-## 与官方 OpenWrt 25.12.5 的关系
+## 与官方 OpenWrt 25.12.6 的关系
 
-本更新源当前只收录 ImmortalWrt 线（与这台路由器当前系统同 fork，配置迁移平滑、PassWall 生态保留）。切换到官方 OpenWrt 25.12.5 属于跨 fork 的人工流程，见 [docs/09-official-upgrade.md](../docs/09-official-upgrade.md)——不要用 ota-check 在跨 fork 之间自动刷写，脚本也会主动拒绝这种情况。
+本更新源当前只收录 ImmortalWrt 线（与这台路由器当前系统同 fork，配置迁移平滑、PassWall 生态保留）。切换到官方 OpenWrt 25.12.6 属于跨 fork 的人工流程，见 [docs/09-official-upgrade.md](../docs/09-official-upgrade.md)——不要用 ota-check 在跨 fork 之间自动刷写，脚本也会主动拒绝这种情况。

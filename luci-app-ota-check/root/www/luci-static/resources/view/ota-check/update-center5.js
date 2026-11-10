@@ -12,10 +12,11 @@
  * 更新源（1.4.0 起）：顶部可选 github / gitee，GitHub 为默认主源；检测与下载按钮
  * 自动带上 --source 参数，主源不可达时可切换备用源。
  * 更新日志读自 ota-check 每次检测保存的 /tmp/ota-manifest.json。
+ * 版本按钮（1.4.1 起）：按缓存清单动态生成，各版本单独检测，不再硬编码 23.05.7。
  * 节点引用在点击时按 id 现场查找，避免主题动画换 DOM 后引用失效。
  * 网页只提供「检测」与「下载校验」；刷写动作保留在 SSH 的 ota-check --flash，
  * 需要人工输入 YES 确认——这是有意的安全边界。
- * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 update-center3.js 更名而来）。
+ * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 update-center4.js 更名而来）。
  */
 
 var OUT_FILE = '/tmp/ota-check-ui.out';
@@ -163,6 +164,32 @@ function renderChangelog(box, manifestJson) {
 function refreshChangelog() {
 	return L.resolveDefault(fs.read(MANIFEST_FILE), '').then(function(txt) {
 		renderChangelog(document.getElementById('ota-changelog'), txt);
+		renderVersionButtons(document.getElementById('ota-version-buttons'), txt);
+	});
+}
+
+/* 版本按钮按缓存清单动态生成：清单增删版本时页面自动跟随，不会留下指向已删除版本的死按钮。
+   容器由调用方传入：render() 阶段节点还没挂到 document 上，getElementById 会返回 null。 */
+function renderVersionButtons(box, manifestJson) {
+	if (!box) return;
+	var m = null;
+	try { m = JSON.parse(manifestJson || ''); } catch (e) { m = null; }
+	var releases = (m && m.releases) || [];
+	box.innerHTML = '';
+	if (!releases.length) {
+		box.appendChild(E('span', { 'style': 'opacity:.55;font-size:85%' },
+			_('检测指定版本：先点「检测更新」拉取清单。')));
+		return;
+	}
+	box.appendChild(E('span', { 'style': 'opacity:.55;font-size:85%;margin-right:6px' }, _('检测指定版本：')));
+	releases.slice().sort(function(a, b) { return versionDesc(a.version, b.version); }).forEach(function(r) {
+		box.appendChild(E('button', {
+			'class': 'btn cbi-button',
+			'style': 'margin:2px 4px 2px 0',
+			'click': function(ev) {
+				runWithSource(ev, ['--version', r.version], '正在后台检测 ' + r.version + '…');
+			}
+		}, [ r.version + (r.recommended ? ' ' + _('（推荐）') : '') ]));
 	});
 }
 
@@ -191,7 +218,8 @@ return view.extend({
 
 		var changelogBox = E('div', { 'id': 'ota-changelog' });
 		renderChangelog(changelogBox, data[2]);
-
+		var versionButtonsBox = E('div', { 'class': 'cbi-value', 'id': 'ota-version-buttons' });
+		renderVersionButtons(versionButtonsBox, data[2]);
 		var sourceSelect = E('select', { 'id': 'ota-source', 'class': 'cbi-input-select' },
 			SOURCES.map(function(s) {
 				return E('option', { 'value': s.id }, s.name);
@@ -249,13 +277,9 @@ return view.extend({
 					E('button', {
 						'class': 'btn cbi-button',
 						'click': function(ev) { runWithSource(ev, ['--download'], '正在后台下载镜像并校验 SHA256（约 10MB，请稍候）…'); }
-					}, _('下载镜像（不刷写）')),
-					' ',
-					E('button', {
-						'class': 'btn cbi-button',
-						'click': function(ev) { runWithSource(ev, ['--version', '23.05.7'], '正在后台检测 23.05.7…'); }
-					}, _('检测 23.05.7（保守分支）'))
+					}, _('下载镜像（不刷写）'))
 				]),
+				versionButtonsBox,
 				outPre
 			]),
 			E('div', { 'class': 'cbi-section' }, [

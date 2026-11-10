@@ -24,17 +24,17 @@ target: ramips/mt7621
 
 ## 2. 当前官方固件基线
 
-截至 2026-08-30，OpenWrt Firmware Selector 和官方下载目录均提供 RE-CP-02 的 25.12.5 镜像。官方文件名、下载地址和 SHA256 如下：
+截至 2026-11-09，OpenWrt Firmware Selector 和官方下载目录均提供 RE-CP-02 的 25.12.6 镜像。以下 SHA256 已与官方 `sha256sums` 核对：
 
 | 文件 | 用途 | SHA256 |
 | --- | --- | --- |
-| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 已运行 OpenWrt 的常规升级 | `8fd7653aaf8233e0c49ea1f014e9b61c2b3aad90186b53880e9d77c8fdf02dc0` |
-| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | 临时启动或特定恢复流程 | `b14c9a57d24f71af95b1636b720d3e1d9b95606a8ccc8efa28ddbca4df62fc77` |
+| `openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 已运行 OpenWrt 的常规升级 | `30995d91889e8db1e79e7ca0dc0297c94d1877c2d832b1db341072989f9076c0` |
+| `openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | 临时启动或特定恢复流程 | `e3544d3ae3be733dc4ce71f34fa9acdcdd9a30bf8f58f3c1753f57a18d6a7645` |
 
 官方下载目录：
 
 ```text
-https://downloads.openwrt.org/releases/25.12.5/targets/ramips/mt7621/
+https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/
 ```
 
 普通升级只使用文件名以 `-squashfs-sysupgrade.bin` 结尾的镜像。`initramfs-kernel.bin` 不等同于常规 sysupgrade 镜像，不要混用。
@@ -64,15 +64,15 @@ scp root@<ROUTER_IP>:/tmp/re-cp-02-packages.txt ./re-cp-02-packages.txt
 
 ## 4. 下载并校验官方镜像
 
-路由器上的升级文件应放在 `/tmp`，因为 sysupgrade 会卸载持久化存储。下面命令只适用于 25.12.5 官方镜像：
+路由器上的升级文件应放在 `/tmp`，因为 sysupgrade 会卸载持久化存储。下面命令只适用于 25.12.6 官方镜像：
 
 ```sh
 cd /tmp
-wget -O openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin \
-  https://downloads.openwrt.org/releases/25.12.5/targets/ramips/mt7621/openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+wget -O openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin \
+  https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 printf '%s  %s\n' \
-  8fd7653aaf8233e0c49ea1f014e9b61c2b3aad90186b53880e9d77c8fdf02dc0 \
-  openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin | sha256sum -c -
+  30995d91889e8db1e79e7ca0dc0297c94d1877c2d832b1db341072989f9076c0 \
+  openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin | sha256sum -c -
 ```
 
 只有看到 `OK` 才能继续。校验失败、文件大小异常、下载中断或设备型号不匹配时，删除 `/tmp` 文件并停止操作。
@@ -101,13 +101,13 @@ owut upgrade
 确认备份已取回电脑、镜像校验为 `OK`、路由器供电稳定后执行：
 
 ```sh
-sysupgrade -v /tmp/openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+sysupgrade -v /tmp/openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 ```
 
 默认会尝试保留配置。跨大版本、曾经修改过分区、安装了大量第三方包，或校验提示配置不兼容时，应先采用全新配置方案，而不是盲目保留旧配置：
 
 ```sh
-sysupgrade -n /tmp/openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
+sysupgrade -n /tmp/openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin
 ```
 
 `-n` 会清除旧配置。只有在备份已经复制到电脑并且你准备好重新配置 LAN、WiFi、WAN 和服务时才使用。
@@ -121,7 +121,15 @@ ubus call system board
 cat /etc/openwrt_release
 df -h
 ip -br address
-ping -c 4 192.168.1.1
+ping -c 4 223.5.5.5        # 外网连通性；不要 ping 192.168.1.1，那是路由器自己的地址
+ping -c 4 openwrt.org      # DNS + 外网
+```
+
+再从**电脑**侧确认管理面可达（`<ROUTER_IP>` 换成实际 LAN 地址）：
+
+```sh
+ping <ROUTER_IP>
+curl -I http://<ROUTER_IP>/    # 期望 200 或 302
 ```
 
 确认以下项目：
@@ -156,10 +164,64 @@ ping -c 4 192.168.1.1
 
 不要把未确认来源的 U-Boot、Factory、EEPROM、分区镜像或其他 MT7621 设备固件混用。
 
+## 9. 从 ImmortalWrt 转官方 OpenWrt 会失去什么
+
+这是跨 fork 迁移，不是普通版本升级。**除了分区布局，还要先确认下面这些功能你愿不愿意放弃。**
+
+### 实测差异（2026-11-09 核对官方 25.12.6 与 ImmortalWrt 25.12.2 的包索引）
+
+| 项目 | ImmortalWrt 25.12.2 | 官方 OpenWrt 25.12.6 | 转到官方后 |
+| --- | --- | --- | --- |
+| 包管理器 | apk | apk | 不变 |
+| `luci-theme-argon` | 提供（`2.4.7-r20260824`） | **feed 中没有** | Glass 主题失去 `cascade.css` 依赖，必须回退 bootstrap |
+| PassWall | 提供 `luci-app-passwall` | **feed 中没有** | 需自行编译或换代理方案 |
+| v2rayA | 提供 | 提供（`luci-app-v2raya`） | 可用 |
+| `miniupnpd` | `-nftables` / `-iptables` 变体 | `-nftables` / `-iptables` 变体 | 一致 |
+| 包架构 | `mipsel_24kc` | `mipsel_24kc` | 一致 |
+
+结论：**如果 PassWall 是刚需，不要转官方**，留在 ImmortalWrt 线内升级（见 `ota/manifest.json` 的
+`25.12.2` 条目）。PassWall 与 argon 都不在官方 feed 里，转过去之后的自制 LuCI 应用（更新中心、
+插件中心、状态面板、Glass 主题）都需要重新部署，且主题没有 argon 骨架可用。
+
+### 迁移前检查清单
+
+```sh
+# 1. 记录当前发行版与架构，确认是 ImmortalWrt 而不是已经转过
+cat /etc/openwrt_release
+apk --print-arch          # 期望 mipsel_24kc
+
+# 2. 记录已装包，迁移后逐项对照哪些装不回来
+apk info -vv | sort > /tmp/pkgs-before.txt
+
+# 3. 确认 PassWall 是否真的在用（有节点/在跑才值得保留）
+uci show passwall 2>/dev/null | head -20
+ubus call service list '{"name":"passwall"}' 2>/dev/null
+
+# 4. 确认设备是官方标准布局（第三方 U-Boot / 0x30000 起始的设备不要走本章）
+cat /proc/mtd
+ubus call system board
+```
+
+第 3 步如果显示 PassWall 有实际配置并且在运行，**停止**，改用 ImmortalWrt 线内升级。
+
+### 迁移后的恢复顺序
+
+1. 先恢复网络（LAN / WiFi / WAN），确认能上网。
+2. 装回基础工具与中文界面：`apk add luci-i18n-base-zh-cn lsblk e2fsprogs`。
+3. 再挂 eMMC overlay——**顺序反了会同时出现「overlay 没了」和「上不了网」两个故障**。
+4. 逐个部署自制 LuCI 应用，每个装完都清 `luci-indexcache` 并重启 `rpcd`。
+5. 主题只能回退 bootstrap；不要再设 `luci.main.mediaurlbase=/luci-static/glass`，如果之前设过：
+
+```sh
+uci set luci.main.mediaurlbase="/luci-static/bootstrap"
+uci commit luci
+/etc/init.d/uhttpd restart
+```
+
 ## 参考资料
 
 - OpenWrt RE-CP-02 官方设备页：<https://openwrt.org/toh/hwdata/jdcloud/jdcloud_re-cp-02>
-- OpenWrt Firmware Selector：<https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.5>
+- OpenWrt Firmware Selector：<https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.6>
 - OpenWrt CLI 升级说明：<https://openwrt.org/docs/guide-user/installation/sysupgrade.cli>
 - OpenWrt owut 说明：<https://openwrt.org/docs/guide-user/installation/sysupgrade.owut>
 - RE-CP-02 社区设备实践：<https://github.com/1-1-2/OpenWrt-Custom/blob/main/RE-CP-02.md>

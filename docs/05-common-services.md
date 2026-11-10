@@ -68,8 +68,13 @@ UPnP 用来让内网设备自动申请端口映射，例如游戏、NAS、BT、�
 安装：
 
 ```sh
-apk add miniupnpd luci-app-upnp luci-i18n-upnp-zh-cn
+apk add miniupnpd-nftables luci-app-upnp luci-i18n-upnp-zh-cn
 ```
+
+> 25.12 起 `miniupnpd` 拆成 `miniupnpd-nftables` 与 `miniupnpd-iptables` 两个变体，
+> **不存在名为 `miniupnpd` 的包**。25.12 默认用 nftables，选前者；固件仍在用
+> iptables 时改选 `miniupnpd-iptables`。两者二选一，不要同时安装。
+> 安装后 init 脚本名仍是 `/etc/init.d/miniupnpd`，插件中心的 `init` 探测名无需改动。
 
 启用：
 

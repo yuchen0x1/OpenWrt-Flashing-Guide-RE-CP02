@@ -55,6 +55,9 @@ tmp_*.json
 .zcode/
 .mimosa/
 
+# 本地工作记录（审计报告、升级过程笔记），不随仓库发布
+.autonomous-upgrade/
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

@@ -19,6 +19,7 @@ let lastFocusedElement = null;
 let searchIndexPromise = null;
 let searchRequestId = 0;
 let currentDocIndex = -1;
+let docRequestId = 0;
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -182,18 +183,23 @@ function saveCurrentDocProgress() {
 }
 async function openDoc(path) {
   const resolvedPath = normalizeDocPath(path);
+  const requestId = ++docRequestId;
   saveCurrentDocProgress();
+  const wasOpen = modal.classList.contains('is-open');
   currentDocIndex = docs.findIndex(doc => doc[3] === resolvedPath);
-  lastFocusedElement = document.activeElement;
+  if (!wasOpen) lastFocusedElement = document.activeElement;
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
   $('#modal-title').textContent = titleFor(resolvedPath);
   $('#modal-body').innerHTML = '<div class="loading">正在读取文档…</div>';
+  /* 焦点必须落在可聚焦元素上：遮罩层 div 没有 tabindex，focus() 是空操作 */
+  if (!wasOpen) $('#modal-title').focus();
   try {
     const response = await fetch(resolvedPath);
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const rendered = renderMarkdown(await response.text());
+    if (requestId !== docRequestId) return;
     const nav = currentDocIndex > -1
       ? '<nav class="doc-pager" aria-label="文档翻页">'
         + (currentDocIndex > 0 ? '<button class="doc-prev" type="button" data-doc="' + docs[currentDocIndex - 1][3] + '"><small>上一篇</small><b>' + escapeHtml(docs[currentDocIndex - 1][1]) + '</b></button>' : '<span></span>')
@@ -211,6 +217,9 @@ async function openDoc(path) {
       const target = $('#' + button.dataset.toc, $('#modal-body'));
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
+    /* 翻页会替换整个 modal-body，原来获焦的按钮已脱离文档；把焦点交还标题，
+       否则键盘用户和读屏器会停在 <body> 上 */
+    if (wasOpen) $('#modal-title').focus();
     const bodyEl = $('#modal-body');
     /* 阅读进度持久化：打开时恢复上次滚动位置（若在合法范围内） */
     const saved = readReadingProgress(resolvedPath);
@@ -219,6 +228,7 @@ async function openDoc(path) {
       bodyEl.scrollTop = saved;
     }
   } catch (error) {
+    if (requestId !== docRequestId) return;
     $('#modal-body').innerHTML = '<p>无法读取文档：' + escapeHtml(error.message) + '</p>';
   }
 }
@@ -231,7 +241,8 @@ function closeDoc() {
   modal.classList.remove('is-open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
-  if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus();
+  if (lastFocusedElement && lastFocusedElement.isConnected && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus();
+  lastFocusedElement = null;
 }
 function readingStoreKey(path) {
   return 're-cp-02-progress:' + path;
@@ -323,18 +334,24 @@ if (savedTheme === 'light') {
 const searchModal = $('#search-modal');
 const searchInput = $('#search-input');
 const searchResults = $('#search-results');
+let searchOpener = null;
 function openSearch() {
+  if (searchModal.classList.contains('is-open')) return;
+  searchOpener = document.activeElement;
   searchModal.classList.add('is-open');
   searchModal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
   searchInput.focus();
 }
 function closeSearch() {
+  if (!searchModal.classList.contains('is-open')) return;
   searchModal.classList.remove('is-open');
   searchModal.setAttribute('aria-hidden', 'true');
   if (!modal.classList.contains('is-open')) document.body.classList.remove('modal-open');
   searchInput.value = '';
   searchResults.innerHTML = '<p class="search-hint">输入关键词开始搜索</p>';
+  if (searchOpener && searchOpener.isConnected && typeof searchOpener.focus === 'function') searchOpener.focus();
+  searchOpener = null;
 }
 $('#search-open').addEventListener('click', openSearch);
 $$('[data-close-search]').forEach(element => element.addEventListener('click', closeSearch));
@@ -358,12 +375,13 @@ async function getSearchIndex() {
   return searchIndexPromise;
 }
 searchInput.addEventListener('input', async () => {
+  /* 先作废在途请求：清空输入后旧响应仍会回来，不递增代次就会把已清空的列表重新写满 */
+  const requestId = ++searchRequestId;
   const term = searchInput.value.trim().toLowerCase();
   if (!term) {
     searchResults.innerHTML = '<p class="search-hint">输入关键词开始搜索</p>';
     return;
   }
-  const requestId = ++searchRequestId;
   searchResults.innerHTML = '<p class="search-hint">正在搜索…</p>';
   const index = await getSearchIndex();
   if (requestId !== searchRequestId) return;
@@ -398,8 +416,14 @@ document.addEventListener('keydown', event => {
     openSearch();
   }
   if (event.key === 'Escape') {
-    closeDoc();
-    closeSearch();
+    if (searchModal.classList.contains('is-open')) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSearch();
+    } else if (modal.classList.contains('is-open')) {
+      event.preventDefault();
+      closeDoc();
+    }
   }
 });
 

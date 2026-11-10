@@ -54,12 +54,16 @@
 │   ├── router-lan-rescue.sh          ← 网络急救：LAN / DHCP / WiFi 一键恢复
 │   ├── router-net-diagnose.ps1       ← Windows 网络诊断脚本
 │   ├── project-health-check.ps1      ← 本地站点与项目健康检查
+│   ├── check-consistency.js          ← 官方基线版本/哈希跨文件一致性
+│   ├── check-ota-view.js             ← 更新中心视图逻辑回归（版本按钮按清单生成）
+│   ├── check-site-interaction.js     ← 阅读站点交互回归（headless 浏览器）
 │   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
+├── .github/workflows/checks.yml      ← 只读 CI：语法、一致性、回归、站点冒烟
 ├── luci/
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
-├── luci-app-ota-check/               ← 自制 LuCI 应用：固件更新源检测页（配合 ota-check.sh）
+├── luci-app-ota-check/               ← 自制 LuCI 应用：更新中心（配合 ota-check.sh）
 ├── luci-app-plugin-hub/              ← 自制 LuCI 应用：插件中心导航页（状态徽标 + 服务启停）
 ├── luci-app-status-panel/            ← 自制 LuCI 应用：状态面板（网口状态图 + 温度/无线/实时资源）
 ├── luci-theme-glass/                 ← 自制 LuCI 主题（深浅双模式，依赖 luci-theme-argon）
@@ -81,9 +85,9 @@
 | 校验清单（firmware/） | U-Boot、initramfs、sysupgrade 固件与 Xray 文件的 SHA256，用于刷机前逐项比对 |
 | PassWall 节点补丁（luci/passwall-node-list-enhance/） | 可选的节点测速排序与明确超标筛选补丁，不含订阅和节点数据 |
 | 固件更新源（ota/） | 自有 OTA 版本清单：版本号、下载地址、SHA256 与发布说明，配合 ota-check.sh 实现路由器端检测更新 |
-| 辅助脚本（scripts/） | 更新检测、刷机后清理、一键 eMMC 扩容、网络急救、Windows 网络诊断、项目健康检查 + OpenWrt IPv6 查询 |
+| 辅助脚本（scripts/） | 更新检测、刷机后清理、一键 eMMC 扩容、网络急救、Windows 网络诊断、项目健康检查、版本一致性/OTA 视图/站点交互回归 + OpenWrt IPv6 查询 |
 | LuCI 示例（luci/） | 放进 LuCI 总览页即可一键打开 `:2017` v2rayA 管理页 |
-| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 固件更新检测页（GitHub 主源 / Gitee 备用可切换）、可启停服务的插件中心、iStoreOS 风格状态面板（含温度与无线客户端）与深浅双模式 Glass 主题，部署方式见各自 README |
+| 自制 LuCI 应用与主题（luci-app-*/、luci-theme-glass/） | 更新中心（GitHub 主源 / Gitee 备用可切换）、可启停服务的插件中心、iStoreOS 风格状态面板（含温度与无线客户端）与深浅双模式 Glass 主题，部署方式见各自 README |
 | eMMC 扩容文档 | RE-CP-02 内置 eMMC 重新分区、格式化、迁移 overlay 与验证的完整记录 |
 
 ---
@@ -126,6 +130,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\project-health-check.ps1
 
 健康检查默认接受仓库不包含固件二进制的策略，只校验清单格式；拿到全部固件后可加 `-RequireFirmware`，同时验证本地文件是否存在并匹配 SHA256。检查过程只读，不会修改网卡或路由器。
 
+另有版本一致性检查，用于防止「官方基线只改了一半」：
+
+```sh
+node scripts/check-consistency.js
+```
+
+它比对 `firmware/SHA256SUMS.txt`、`docs/09`、`firmware/README.md`、`README.md`、`site/index.html` 与 `ota/manifest.json` 中的版本号、哈希、下载链接和校验日期，任一不一致即以非零退出码失败。
+
 ---
 
 ## 动手前核对清单
@@ -160,18 +172,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\project-health-check.ps1
 | 第 7 步 | [v2rayA 分流与快捷入口](docs/06-v2raya.md) | v2rayA 分流配置与 LuCI 快捷入口 |
 | 第 8 步 | [常见问题排查](docs/07-troubleshooting.md) | 代理影响 LuCI、DDNS 更新失败、Recovery 进不去等 |
 | 第 9 步 | [路由器全球分流恢复](docs/08-router-global-access.md) | 路由器侧分流恢复 |
-| 第 10 步 | [官方更新、备份与回滚](docs/09-official-upgrade.md) | 官方 25.12.5、owut、sysupgrade、备份和回滚 |
+| 第 10 步 | [官方更新、备份与回滚](docs/09-official-upgrade.md) | 官方 25.12.6、owut、sysupgrade、备份和回滚 |
 
 ---
 
 ## 官方更新与回滚
 
-OpenWrt 官方已为 RE-CP-02 提供 25.12.5 稳定镜像。常规升级优先使用官方 `jdcloud_re-cp-02` sysupgrade 文件，并先阅读 [官方更新、备份与回滚](docs/09-official-upgrade.md)。官方镜像的文件名、下载地址和 SHA256 已在该章节记录；社区魔改 U-Boot 或分区布局不得与官方标准镜像混用。
+OpenWrt 官方已为 RE-CP-02 提供 25.12.6 稳定镜像（本仓库于 2026-11-09 核对官方清单）。常规升级优先使用官方 `jdcloud_re-cp-02` sysupgrade 文件，并先阅读 [官方更新、备份与回滚](docs/09-official-upgrade.md)。官方镜像的文件名、下载地址和 SHA256 已在该章节记录；社区魔改 U-Boot 或分区布局不得与官方标准镜像混用。
 
 官方设备页和 Firmware Selector：
 
 - https://openwrt.org/toh/hwdata/jdcloud/jdcloud_re-cp-02
-- https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.5
+- https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.6
 
 ---
 
@@ -187,8 +199,8 @@ OpenWrt 官方已为 RE-CP-02 提供 25.12.5 稳定镜像。常规升级优先�
 | `openwrt-25.12.0-rc2-无TF卡驱动-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | sysupgrade 固件，无 TF 卡驱动 |
 | `openwrt-25.12.1-自用-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 作者自用 sysupgrade 固件 |
 | `xray-softfloat-26.7.28-linux-mipsle` | v2rayA / PassWall 恢复使用的 linux/mipsle soft-float Xray 核心 |
-| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 官方 25.12.5 sysupgrade 固件，当前首选升级基线 |
-| `openwrt-25.12.5-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | 官方 25.12.5 临时启动用 initramfs |
+| `openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin` | 官方 25.12.6 sysupgrade 固件，当前首选升级基线 |
+| `openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-initramfs-kernel.bin` | 官方 25.12.6 临时启动用 initramfs |
 
 > ⚠️ **需要人工确认**：本 Git 仓库不含上述二进制文件。刷机前请自行确认下载来源、设备型号、文件名与 SHA256；**不要把其他 MT7621 设备固件混刷到 RE-CP-02**。
 
@@ -276,7 +288,7 @@ http://<路由器地址>:2017/
 
 ### 工具四：自有固件更新源（OTA 检测）
 
-以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6（推荐/latest）与 23.05.7，另收录 25.12.2 新大版本分支供手动尝鲜、不参与自动检测提示，SHA256 均取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。更新源默认 GitHub raw，网络不通时用 `--source gitee` 切备用源（更新中心页面顶部也可切换并记住选择）。详见 [ota/README.md](ota/README.md)。
+以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6（推荐/latest）与 23.05.7，另收录 25.12.2 新大版本分支供手动尝鲜、不参与自动检测提示，SHA256 均取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。更新源默认 GitHub raw，网络不通时用 `--source gitee` 切备用源（更新中心页面顶部也可切换并记住选择）。网页端（`luci-app-ota-check`）的部署步骤见 [luci-app-ota-check/README.md](luci-app-ota-check/README.md)，命令行用法与发布流程见 [ota/README.md](ota/README.md)。
 
 ```sh
 # 路由器上安装后运行
@@ -374,6 +386,26 @@ python -m http.server 18765 --bind 127.0.0.1
 - 命令示例是否仍对应真实文件路径
 - 新增示例是否使用占位符，不含任何私人配置
 - 固件文件名是否与 `firmware/SHA256SUMS.txt` 一致
+
+提交前跑一遍（CI 会执行同样的检查）：
+
+```sh
+node scripts/check-consistency.js
+node scripts/check-ota-view.js
+node scripts/check-passwall-node-list-enhance.js
+powershell -ExecutionPolicy Bypass -File ./scripts/project-health-check.ps1
+```
+
+站点交互回归需要先起本地服务（会启动 headless Edge/Chrome）：
+
+```sh
+python -m http.server 18793 --bind 127.0.0.1
+node scripts/check-site-interaction.js http://127.0.0.1:18793/site/
+```
+
+改动官方基线（新版本发布）时，**6 个副本要一次改完**：`firmware/SHA256SUMS.txt`（权威值）、
+`docs/09-official-upgrade.md`、`firmware/README.md`、`docs/02-flashing.md`、`README.md`、
+`site/index.html`。少改一处 `check-consistency.js` 就会报出来。
 
 **提交 issue、PR、截图或公开命令输出前，务必删除以下敏感信息：**
 

@@ -1,0 +1,184 @@
+name: checks
+
+# 只读检查：语法、版本一致性、OTA 清单、PassWall 回归、站点资源。
+# 不下载固件、不刷写设备、不接触路由器。
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: 静态检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 检出后确认 shell 脚本有可执行位
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            mode=$(git ls-files -s -- "$f" | cut -d' ' -f1)
+            if [ "$mode" != "100755" ]; then
+              echo "::error file=$f::git mode 是 $mode，需要 100755"
+              fail=1
+            fi
+          done < <(git ls-files '*.sh' 'luci-app-ota-check/root/usr/bin/ota-check-ui')
+          exit $fail
+
+      - name: 确认 shell 脚本是 LF（CRLF 会让 BusyBox ash 直接退出）
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if grep -q $'\r' "$f"; then
+              echo "::error file=$f::包含 CRLF 行尾，路由器上是 $f；请以 LF 提交"
+              fail=1
+            fi
+          done < <(git ls-files '*.sh' 'luci-app-ota-check/root/usr/bin/ota-check-ui')
+          exit $fail
+
+      - name: bash 语法检查
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if ! bash -n "$f"; then
+              echo "::error file=$f::bash -n 失败"
+              fail=1
+            fi
+          done < <(git ls-files '*.sh')
+          exit $fail
+
+      - name: JavaScript 语法检查
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if ! node --check "$f"; then
+              echo "::error file=$f::node --check 失败"
+              fail=1
+            fi
+          done < <(git ls-files '*.js')
+          exit $fail
+
+      - name: 版本 / 哈希一致性
+        run: node scripts/check-consistency.js --verbose
+
+      - name: LuCI 更新中心视图逻辑（版本按钮按清单生成）
+        run: node scripts/check-ota-view.js
+
+      - name: PassWall 节点列表行为回归
+        run: node scripts/check-passwall-node-list-enhance.js
+
+      - name: JSON 文件可解析
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if ! node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$f"; then
+              echo "::error file=$f::不是合法 JSON"
+              fail=1
+            fi
+          done < <(git ls-files '*.json')
+          exit $fail
+
+      - name: 菜单项引用的视图文件存在
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            view=$(node -e "
+              const m = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+              for (const k of Object.keys(m)) {
+                const p = m[k].action && m[k].action.path;
+                if (p) console.log(p);
+              }
+            " "$f")
+            for v in $view; do
+              app=$(echo "$f" | cut -d/ -f1)
+              js="$app/root/www/luci-static/resources/view/$v.js"
+              if [ ! -f "$js" ]; then
+                echo "::error file=$f::menu.d 指向的视图缺失: $js"
+                fail=1
+              fi
+            done
+          done < <(git ls-files '*luci/menu.d/*.json')
+          exit $fail
+
+      - name: LuCI ACL 引用的路径格式检查（不得出现绝对通配到全盘）
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if grep -qE '"\s*/\s*"\s*:' "$f"; then
+              echo "::error file=$f::ACL 出现根路径授权，范围过大"
+              fail=1
+            fi
+          done < <(git ls-files '*rpcd/acl.d/*.json')
+          exit $fail
+
+      - name: 文档本地链接可达
+        run: |
+          : > /tmp/missing-links.txt
+          while IFS= read -r f; do
+            dir=$(dirname "$f")
+            # 只检查相对路径链接，跳过 http(s)/mailto/纯锚点
+            grep -oE '\]\([^)]+\)' "$f" 2>/dev/null \
+              | sed -E 's/^\]\((.*)\)$/\1/' \
+              | sed -E 's/#.*$//' \
+              | grep -vE '^(https?:|mailto:|$)' \
+              | while IFS= read -r rel; do
+                  [ -e "$dir/$rel" ] || echo "MISSING $f -> $rel"
+                done
+          done < <(git ls-files '*.md') >> /tmp/missing-links.txt
+          if [ -s /tmp/missing-links.txt ]; then
+            cat /tmp/missing-links.txt
+            echo "::error::存在失效的本地链接"
+            exit 1
+          fi
+          echo "本地链接全部可达"
+
+  site-smoke:
+    name: 站点资源冒烟
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 起本地静态服务并请求关键资源
+        run: |
+          python3 -m http.server 18791 --bind 127.0.0.1 >/tmp/http.log 2>&1 &
+          server=$!
+          trap 'kill $server' EXIT
+          sleep 2
+          fail=0
+          for path in "" "site/" "site/styles.css" "site/app.js" \
+                      "site/favicon.svg" "site/assets/hero-router.jpg" \
+                      "firmware/README.md" "firmware/SHA256SUMS.txt" \
+                      "docs/09-official-upgrade.md" "ota/manifest.json"; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:18791/$path" || echo 000)
+            echo "$code  /$path"
+            [ "$code" = "200" ] || { echo "::error::/$path 返回 $code"; fail=1; }
+          done
+          exit $fail
+
+      - name: 站点引用的文档没有遗漏
+        run: |
+          on_disk=$(find docs -maxdepth 1 -name '*.md' -printf '%f\n' | sort)
+          in_site=$(grep -oE "\.\./docs/[0-9a-z-]+\.md" site/app.js | sed 's|\.\./docs/||' | sort)
+          if [ "$on_disk" != "$in_site" ]; then
+            echo "docs/ 与 site/app.js 的文档映射不一致"
+            diff <(echo "$on_disk") <(echo "$in_site") || true
+            exit 1
+          fi
+          echo "文档映射一致（$(echo "$on_disk" | wc -l) 篇）"
+
+      - name: 站点交互回归（headless Chromium）
+        run: |
+          python3 -m http.server 18793 --bind 127.0.0.1 >/tmp/http-site.log 2>&1 &
+          server=$!
+          trap 'kill $server' EXIT
+          sleep 2
+          SITE_TEST_BROWSER=/usr/bin/google-chrome \
+            node scripts/check-site-interaction.js "http://127.0.0.1:18793/site/"

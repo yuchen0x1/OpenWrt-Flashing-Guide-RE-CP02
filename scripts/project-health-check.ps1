@@ -13,6 +13,7 @@ $base = $BaseUri.TrimEnd('/') + '/'
 $failures = [System.Collections.Generic.List[string]]::new()
 $passes = [System.Collections.Generic.List[string]]::new()
 $skips = [System.Collections.Generic.List[string]]::new()
+$psGitAvailable = [bool](Get-Command git -ErrorAction SilentlyContinue)
 
 function Pass {
     param([string]$Message)
@@ -152,18 +153,43 @@ foreach ($file in $psFiles) {
     }
 }
 
-# sh scripts: syntax + exec permission check (Win32 上 bash 常驻 Git Bash 提供)
+# sh scripts: syntax + exec permission check (Win32 上优先使用 Git Bash)
 # .sh 脚本语法用 bash -n / sh -n 校验；可执行脚本按仓库约定需保留 +x 权限位。
 $shScripts = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.sh" |
     Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
     Sort-Object FullName)
-if (Get-Command bash -ErrorAction SilentlyContinue) {
+# 无扩展名的路由器端包装器也要保留 +x：LuCI 通过 fs.exec 直接执行它。
+$extraExecFiles = @(Get-ChildItem -LiteralPath (Join-Path $root "luci-app-ota-check/root/usr/bin") -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq 'ota-check-ui' })
+$execCheckTargets = @($shScripts) + @($extraExecFiles)
+$bashCommand = $null
+# Windows 10/11 可能把 bash.exe 解析到 WSL 转发器；本项目只需要 Git Bash，
+# 因此显式优先探测 Git 安装路径，避免“bash 存在但 WSL 无发行版”的误报失败。
+$gitBashCandidates = @(
+    (Join-Path ${env:ProgramFiles} 'Git\bin\bash.exe'),
+    (Join-Path ${env:ProgramFiles} 'Git\usr\bin\bash.exe'),
+    (Join-Path ${env:ProgramW6432} 'Git\bin\bash.exe'),
+    (Join-Path ${env:ProgramW6432} 'Git\usr\bin\bash.exe')
+)
+foreach ($candidate in $gitBashCandidates) {
+    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+        $bashCommand = $candidate
+        break
+    }
+}
+if (-not $bashCommand) {
+    $bashFromPath = Get-Command bash -ErrorAction SilentlyContinue
+    if ($bashFromPath) {
+        $bashCommand = $bashFromPath.Source
+    }
+}
+if ($bashCommand) {
     foreach ($file in $shScripts) {
         $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
         # Git Bash 的 bash 接受正斜杠路径；反斜杠会被当转义符
         $posixPath = $file.FullName -replace '\\', '/'
         $ErrorActionPreference = "Continue"
-        $output = (& bash -n $posixPath 2>&1 | Out-String).TrimEnd()
+        $output = (& $bashCommand -n $posixPath 2>&1 | Out-String).TrimEnd()
         $rc = $LASTEXITCODE
         $ErrorActionPreference = "Stop"
         if ($rc -eq 0) {
@@ -175,9 +201,12 @@ if (Get-Command bash -ErrorAction SilentlyContinue) {
 } else {
     Skip "bash not found; shell syntax checks skipped ($($shScripts.Count) files)"
 }
-foreach ($file in $shScripts) {
+foreach ($file in $execCheckTargets) {
     $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
-    # GetUnixFileMode 仅 PS 7+；PowerShell 5.1 下改为 SKIP（Windows 端无法可靠读 unix 权限位）
+    # git ls-files 只认正斜杠路径
+    $gitPath = $relative -replace '\\', '/'
+    # GetUnixFileMode 仅 PS 7+；PS 5.1 读不了 unix 权限位，但可以回落到 git 索引里的
+    # mode 位（100755/100644），否则这项检查在 Windows PowerShell 5.1 上永远是 SKIP。
     if ($PSVersionTable.PSVersion.Major -ge 7) {
         $mode = [System.IO.File]::GetUnixFileMode($file.FullName)
         if (($mode -band [System.IO.UnixFileMode]::UserExecute) -ne 0) {
@@ -185,8 +214,27 @@ foreach ($file in $shScripts) {
         } else {
             Fail "Exec perm $relative (缺少 +x；仓库脚本按约定需可执行)"
         }
+        continue
+    }
+    $gitLsEntry = $null
+    if ($psGitAvailable) {
+        $ErrorActionPreference = "Continue"
+        $lsOutput = (& git -C $root ls-files -s -- $gitPath 2>&1 | Out-String).Trim()
+        $ErrorActionPreference = "Stop"
+        if ($lsOutput -match '^(\d{6})\s') {
+            $gitLsEntry = $Matches[1]
+        }
+    }
+    if ($gitLsEntry) {
+        if ($gitLsEntry -eq '100755') {
+            Pass "Exec perm $relative (git index 100755)"
+        } else {
+            Fail "Exec perm $relative (git index $gitLsEntry，需要 100755；用 git update-index --chmod=+x 修正)"
+        }
+    } elseif ($psGitAvailable) {
+        Fail "Exec perm $relative (不在 git 索引内，无法判定权限位)"
     } else {
-        Skip "Exec perm $relative (需要 PowerShell 7+；PS 5.1 无法读 unix 权限位)"
+        Skip "Exec perm $relative (需要 PowerShell 7+ 或 git 才能读权限位)"
     }
 }
 
@@ -214,6 +262,73 @@ foreach ($line in $manifestLines) {
     } else {
         Fail "SHA256 mismatch $firmwareName"
     }
+}
+
+# OTA manifest semantic checks: JSON syntax alone is not enough because the
+# router-side checker consumes these fields as its update contract.
+$otaManifestPath = Join-Path $root "ota/manifest.json"
+try {
+    $otaManifest = Get-Content -Raw -Encoding UTF8 $otaManifestPath | ConvertFrom-Json
+    if ($otaManifest.schema -eq 1 -and $otaManifest.distro -and $otaManifest.device_match -and $otaManifest.latest -and @($otaManifest.releases).Count -gt 0) {
+        Pass "OTA manifest required fields"
+    } else {
+        Fail "OTA manifest required fields are incomplete"
+    }
+    $otaVersions = @($otaManifest.releases | ForEach-Object { [string]$_.version })
+    if ($otaVersions -contains [string]$otaManifest.latest) {
+        Pass "OTA manifest latest version is listed"
+    } else {
+        Fail "OTA manifest latest version is not present in releases"
+    }
+    foreach ($release in @($otaManifest.releases)) {
+        $version = [string]$release.version
+        $upgrade = $release.sysupgrade
+        if ($version -match '^\d+\.\d+\.\d+$' -and $upgrade.url -match '^https://') {
+            Pass "OTA release $version URL/version"
+        } else {
+            Fail "OTA release $version has invalid version or non-HTTPS URL"
+        }
+        if ([string]$upgrade.sha256 -match '^[0-9a-fA-F]{64}$' -and [int64]$upgrade.size -gt 0) {
+            Pass "OTA release $version SHA256/size"
+        } else {
+            Fail "OTA release $version has invalid SHA256 or size"
+        }
+    }
+} catch {
+    Fail "OTA manifest JSON/semantic check :: $($_.Exception.Message)"
+}
+
+# 版本一致性：官方基线的版本号/哈希/下载链接在 6 个位置重复出现，只改一半是
+# 本项目最容易重犯的错误（25.12.5 -> 25.12.6 时就是这样漏的），交给专用脚本比对。
+$consistencyScript = Join-Path $root "scripts/check-consistency.js"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $consistencyScript -PathType Leaf)) {
+    $ErrorActionPreference = "Continue"
+    $consistencyOutput = (& node $consistencyScript --verbose 2>&1 | Out-String).TrimEnd()
+    $consistencyExit = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($consistencyExit -eq 0) {
+        Pass "Version consistency check"
+    } else {
+        Fail "Version consistency check :: $consistencyOutput"
+    }
+} else {
+    Skip "node or scripts/check-consistency.js missing; version consistency check skipped"
+}
+
+# LuCI 更新中心视图逻辑：版本按钮必须按清单生成（曾硬编码 23.05.7）。
+$otaViewScript = Join-Path $root "scripts/check-ota-view.js"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $otaViewScript -PathType Leaf)) {
+    $ErrorActionPreference = "Continue"
+    $otaViewOutput = (& node $otaViewScript 2>&1 | Out-String).TrimEnd()
+    $otaViewExit = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($otaViewExit -eq 0) {
+        Pass "OTA view logic check"
+    } else {
+        Fail "OTA view logic check :: $otaViewOutput"
+    }
+} else {
+    Skip "node or scripts/check-ota-view.js missing; OTA view logic check skipped"
 }
 
 if (Test-Path -LiteralPath (Join-Path $root ".git") -PathType Container) {

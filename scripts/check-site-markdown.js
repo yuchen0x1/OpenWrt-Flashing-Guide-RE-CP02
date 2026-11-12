@@ -245,7 +245,7 @@ for (const name of docFiles) {
   else check('渲染 ' + name + '（' + result.toc.length + ' 节）', true);
 }
 
-check('10 篇文档全部可渲染', renderedCount === docFiles.length, renderedCount + '/' + docFiles.length);
+check(`${docFiles.length} 篇文档全部可渲染`, renderedCount === docFiles.length, renderedCount + '/' + docFiles.length);
 
 /* docs/09 的参考资料用 auto-link，必须真的出现链接 */
 {

@@ -8,7 +8,8 @@ const docs = [
   ['06', 'v2rayA 分流与快捷入口', '代理服务、分流模式与 LuCI 入口。', '../docs/06-v2raya.md'],
   ['07', '常见问题排查', '网络、Recovery、服务与扩容故障。', '../docs/07-troubleshooting.md'],
   ['08', '路由器全球分流恢复', '私密配置恢复与验证路径。', '../docs/08-router-global-access.md'],
-  ['09', '官方更新、备份与回滚', '官方固件升级、配置备份与失败恢复。', '../docs/09-official-upgrade.md']
+  ['09', '官方更新、备份与回滚', '官方固件升级、配置备份与失败恢复。', '../docs/09-official-upgrade.md'],
+  ['10', '在线自动更新与发布', 'OTA 清单、标签发布、校验和外部验收边界。', '../docs/AUTO_UPDATE.md']
 ];
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -226,6 +227,27 @@ function closeSearch() {
   if (searchOpener && searchOpener.isConnected && typeof searchOpener.focus === 'function') searchOpener.focus();
   searchOpener = null;
 }
+
+function focusableElements(root) {
+  return $$('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', root)
+    .filter(element => element.offsetParent !== null || element === document.activeElement);
+}
+
+function trapDialogFocus(event, dialog) {
+  if (event.key !== 'Tab' || !dialog) return;
+  const elements = focusableElements(dialog);
+  if (!elements.length) return;
+  const first = elements[0];
+  const last = elements[elements.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 $('#search-open').addEventListener('click', openSearch);
 $$('[data-close-search]').forEach(element => element.addEventListener('click', closeSearch));
 async function getSearchIndex() {
@@ -284,6 +306,11 @@ searchInput.addEventListener('input', async () => {
   $$('.search-result').forEach(element => element.addEventListener('click', () => { closeSearch(); openDoc(element.dataset.doc); }));
 });
 document.addEventListener('keydown', event => {
+  if (searchModal.classList.contains('is-open')) {
+    trapDialogFocus(event, searchModal);
+  } else if (modal.classList.contains('is-open')) {
+    trapDialogFocus(event, modal);
+  }
   if (event.key === '/' && document.activeElement !== searchInput) {
     event.preventDefault();
     openSearch();

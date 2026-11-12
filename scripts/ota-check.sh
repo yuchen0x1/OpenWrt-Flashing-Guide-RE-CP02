@@ -96,15 +96,32 @@ acquire_lock() {
   trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
 }
 
-# 单次下载（不带重试）
+# 单次下载（不带重试）。如果目标文件已经有内容，优先请求 HTTP Range 续传；
+# 服务器不支持 Range 时删除残片并从头下载。最终大小与 SHA256 校验仍是硬门禁。
 fetch_once() {
   _url="$1"; _out="$2"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --connect-timeout 10 --max-time 300 -o "$_out" "$_url"
+    if [ -s "$_out" ]; then
+      curl -fsSL --connect-timeout 10 --max-time 300 -C - -o "$_out" "$_url" || {
+        rm -f "$_out"
+        curl -fsSL --connect-timeout 10 --max-time 300 -o "$_out" "$_url"
+      }
+    else
+      curl -fsSL --connect-timeout 10 --max-time 300 -o "$_out" "$_url"
+    fi
   elif command -v uclient-fetch >/dev/null 2>&1; then
+    # uclient-fetch 在不同 OpenWrt 版本上的断点参数不一致；保留残片会让
+    # 它覆盖写入，完整性校验失败后由上层重试从头获取，避免拼接错误内容。
     uclient-fetch -q -T 30 -O "$_out" "$_url"
   elif command -v wget >/dev/null 2>&1; then
-    wget -q -T 30 -O "$_out" "$_url"
+    if [ -s "$_out" ]; then
+      wget -q -T 30 -c -O "$_out" "$_url" || {
+        rm -f "$_out"
+        wget -q -T 30 -O "$_out" "$_url"
+      }
+    else
+      wget -q -T 30 -O "$_out" "$_url"
+    fi
   else
     return 127
   fi
@@ -335,6 +352,25 @@ TARGET_SHA=$(parsed_field "REL_${TARGET_IDX}_sha256")
 TARGET_SIZE=$(parsed_field "REL_${TARGET_IDX}_size")
 TARGET_NOTES=$(parsed_field "REL_${TARGET_IDX}_notes")
 [ -n "$TARGET_URL" ] && [ -n "$TARGET_SHA" ] || die "manifest 中 $TARGET_VERSION 缺少 url/sha256"
+
+# 远程清单是不可信输入：在下载和大小计算前先限制协议、摘要格式与
+# 数值范围，避免把异常字段带入算术表达式或生成不可预期的请求。
+case "$TARGET_URL" in
+  https://*) : ;;
+  *) die "manifest 中 $TARGET_VERSION 的下载地址必须使用 HTTPS" ;;
+esac
+case "$TARGET_SHA" in
+  '' | *[!0-9A-Fa-f]*) die "manifest 中 $TARGET_VERSION 的 SHA256 格式无效" ;;
+esac
+[ "$(printf '%s' "$TARGET_SHA" | wc -c)" -eq 64 ] || die "manifest 中 $TARGET_VERSION 的 SHA256 长度无效"
+TARGET_SHA=$(printf '%s' "$TARGET_SHA" | tr 'A-F' 'a-f')
+if [ -n "$TARGET_SIZE" ]; then
+  case "$TARGET_SIZE" in
+    *[!0-9]*) die "manifest 中 $TARGET_VERSION 的镜像大小不是非负整数" ;;
+  esac
+  awk -v size="$TARGET_SIZE" 'BEGIN { exit !(size > 0 && size <= 2147483647) }' \
+    || die "manifest 中 $TARGET_VERSION 的镜像大小超出安全范围"
+fi
 
 CMP=$(version_compare "$CURRENT_VERSION" "$TARGET_VERSION")
 if [ "$CMP" -eq 0 ]; then

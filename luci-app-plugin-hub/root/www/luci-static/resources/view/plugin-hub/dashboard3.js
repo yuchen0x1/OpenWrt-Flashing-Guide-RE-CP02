@@ -67,6 +67,9 @@ function runAction(ev, item, action, after) {
 		ev.stopPropagation();
 	}
 	var btn = ev.currentTarget || ev.target;
+	if (action === 'stop' && !window.confirm(_('确认停止服务「') + item.init + _('」？'))) {
+		return;
+	}
 	btn.disabled = true;
 	var original = btn.textContent;
 	btn.textContent = '…';

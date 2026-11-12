@@ -1,4 +1,16 @@
-## 1.4.1 - 2026-11-10
+## 1.4.1 - 2026-11-12
+
+- 接入可验证的在线更新发布链路：新增 `release.yml` 标签构建、OTA 清单审计快照、源代码快照与 `SHA256SUMS.txt`；增加 `check-auto-update.js` 覆盖版本比较、失败重试、错误地址和损坏文件场景。
+- 新增 `docs/AUTO_UPDATE.md`，明确 OpenWrt OTA 的真实边界、GitHub Release 发布步骤、SHA-256 校验、签名阻塞项和设备端人工刷写要求；README 与站点文档索引同步更新。
+- `ota-check.sh` 下载失败重试时支持 curl/wget 的 HTTP Range 断点续传，服务器不支持 Range 时自动回退全量下载，最终仍以文件大小和 SHA256 为硬门禁。
+- Markdown 全量回归的文档计数改为动态读取 `docs/`，新增自动更新文档后不会留下“10 篇”硬编码提示。
+- 修复 `luci-app-ota-check/root/usr/bin/ota-check-ui` 的并发竞态：改用原子 `mkdir` 锁目录和 `kill -0` 进程存活检查，两个同时到达的 LuCI 请求不会再并行覆写输出文件；增加可注入路径/命令以支持本地回归测试。
+- `ota-check.sh` 在下载前严格校验 HTTPS 地址、SHA256 长度/字符集与镜像大小范围，避免异常更新清单进入算术计算或下载流程。
+- 插件中心停止服务前增加二次确认，避免误触关闭路由器关键服务。
+- 静态阅读站点为文档与搜索弹窗增加 Tab 焦点边界，键盘用户不会意外移出模态对话框。
+- 新增 `scripts/check-ota-wrapper.js`，纳入 CI，覆盖 OTA 包装器锁、完成标记与输出重定向约束。
+- 健康检查和 CI 的 Bash 语法范围补上无扩展名的 `ota-check-ui` 包装器，避免只检查 `.sh` 而漏掉 LuCI 直接执行文件。
+- 站点交互回归新增文档/搜索模态 Tab 焦点边界断言，Edge 回归由 7 项扩为 9 项。
 
 - 官方升级资料同步至 OpenWrt 25.12.6：更新 RE-CP-02 的 sysupgrade/initramfs 文件名、官方下载地址与 SHA256，并同步阅读站点展示（哈希已与官方 `sha256sums` 逐字节核对）。
 - 修复 Windows 健康检查误选 WSL `bash.exe` 导致 shell 语法检查失败的问题，优先探测 Git Bash。

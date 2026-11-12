@@ -1,0 +1,27 @@
+{
+  "tested_at": "2026-11-12",
+  "environment": {"os":"Windows", "shell":"PowerShell", "node":"available", "browser":"Microsoft Edge available", "router":"not connected"},
+  "results": [
+    {"command":"node scripts/check-consistency.js","status":"passed","evidence":"15 pass, 0 fail; baseline OpenWrt 25.12.6"},
+    {"command":"node scripts/check-ota-view.js","status":"passed","evidence":"17 pass, 0 fail"},
+    {"command":"node scripts/check-passwall-node-list-enhance.js","status":"passed","evidence":"56 pass, 0 fail"},
+    {"command":"node scripts/check-site-markdown.js","status":"passed","evidence":"56 pass, 0 fail"},
+    {"command":"node scripts/check-ota-wrapper.js","status":"passed_with_skip","evidence":"10 static pass, dynamic branch skipped because Windows has no /proc"},
+    {"command":"node scripts/check-auto-update.js","status":"passed","evidence":"12 pass, 0 fail; manifest contract, version comparison, retry exhaustion, SHA256 corruption and invalid URL/version cases"},
+    {"command":"node scripts/build-release-metadata.js --version v1.4.1","status":"passed","evidence":"generated local OTA metadata snapshot; no Release or external upload performed"},
+    {"command":"powershell -ExecutionPolicy Bypass -File scripts/project-health-check.ps1","status":"passed_with_skip","evidence":"40 pass, 0 fail, 9 skip; firmware binaries absent by repository policy; HTTP server not running"},
+    {"command":"python -m http.server 18793 --bind 127.0.0.1; node scripts/check-site-interaction.js http://127.0.0.1:18793/site/","status":"passed","evidence":"9 pass, 0 fail in real headless Edge; includes document/search Tab traps; server stopped after test"},
+    {"command":"git diff --check","status":"passed","evidence":"no whitespace errors"},
+    {"command":"bash -n / PowerShell syntax / node --check","status":"passed","evidence":"covered by project-health-check; changed JS and shell parse successfully"}
+  ],
+  "not_run": [
+    "真实路由器 ACL/RPC、OTA 下载/校验/刷写",
+    "eMMC 分区/格式化/overlay 迁移",
+    "服务启停、温度、无线客户端真实数据",
+    "固件二进制 SHA256（仓库按策略不含二进制）",
+    "Tftpd64 来源签名与运行时安全验证",
+    "Firefox/Safari 视觉矩阵",
+    "真实 GitHub Release 资产下载、签名验证和 RE-CP-02 设备刷写"
+  ],
+  "release_readiness": "not_release_approved_without_hardware_validation"
+}

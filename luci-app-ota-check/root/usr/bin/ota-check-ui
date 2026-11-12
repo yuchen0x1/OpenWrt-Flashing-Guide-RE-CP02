@@ -4,32 +4,62 @@
 # 子进程的 stdout/stderr 必须全部重定向走，否则 rpcd 的 file exec
 # 会一直等管道 EOF，网页按钮就永远转圈。
 #
-# 并发锁：同一时间只允许一个后台检测/下载任务（/tmp/ota-check-ui.lock 存活 PID）。
+# 并发锁：同一时间只允许一个后台检测/下载任务（/tmp/ota-check-ui.lock/pid 存活 PID）。
 # 重复触发时输出 OTA_BUSY 且不清空输出文件，页面检测到 OTA_BUSY 后直接转入
 # 轮询，展示正在运行任务的实时进度。没有锁时连点/多标签页会同时向同一个
 # 输出文件写入，输出交织、下载中的镜像互相截断。
-# 锁通过 /proc/<pid>/cmdline 复核，进程死亡或 PID 被复用后自动失效。
+# 锁通过 /proc/<pid> 与 kill -0 复核进程存活；进程死亡后自动接管残留锁。
 
-OUT=/tmp/ota-check-ui.out
-LOCK=/tmp/ota-check-ui.lock
+OUT="${OTA_UI_OUT:-/tmp/ota-check-ui.out}"
+LOCK="${OTA_UI_LOCK:-/tmp/ota-check-ui.lock}"
+OTA_CHECK_BIN="${OTA_CHECK_BIN:-/usr/bin/ota-check}"
 
 lock_active() {
-  [ -s "$LOCK" ] || return 1
-  _pid=$(cat "$LOCK" 2>/dev/null)
+  [ -f "$LOCK/pid" ] || return 1
+  _pid=$(cat "$LOCK/pid" 2>/dev/null)
   case "$_pid" in
     '' | *[!0-9]*) return 1 ;;
   esac
   [ -d "/proc/$_pid" ] || return 1
-  grep -q ota-check "/proc/$_pid/cmdline" 2>/dev/null
+  kill -0 "$_pid" 2>/dev/null
 }
 
-if lock_active; then
-  echo "OTA_BUSY"
-  exit 0
+acquire_lock() {
+  if [ -e "$LOCK" ]; then
+    if lock_active; then
+      echo "OTA_BUSY"
+      return 1
+    fi
+    rm -rf "$LOCK"
+  fi
+
+  # mkdir is atomic on the router filesystem; unlike a file existence check,
+  # this closes the TOCTOU window when two LuCI requests arrive together.
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    if lock_active; then
+      echo "OTA_BUSY"
+      return 1
+    fi
+    rm -rf "$LOCK"
+    mkdir "$LOCK" 2>/dev/null || {
+      echo "无法创建后台任务锁: $LOCK" >&2
+      return 2
+    }
+  fi
+  printf '%s\n' "$$" > "$LOCK/pid"
+  return 0
+}
+
+acquire_lock
+_lock_rc=$?
+if [ "$_lock_rc" -ne 0 ]; then
+  # A busy request is an expected UI path and must remain a successful rpcd
+  # call; genuine lock setup errors should still be reported as failures.
+  [ "$_lock_rc" -eq 1 ] && exit 0
+  exit "$_lock_rc"
 fi
-rm -f "$LOCK"
 
 : > "$OUT"
-( /usr/bin/ota-check "$@" > "$OUT" 2>&1; echo "__OTA_DONE_$?__" >> "$OUT"; rm -f "$LOCK" ) >/dev/null 2>&1 &
-echo $! > "$LOCK"
+( "$OTA_CHECK_BIN" "$@" > "$OUT" 2>&1; _rc=$?; echo "__OTA_DONE_$_rc__" >> "$OUT"; rm -rf "$LOCK" ) >/dev/null 2>&1 &
+printf '%s\n' "$!" > "$LOCK/pid" 2>/dev/null || :
 echo "已启动后台检测"

@@ -23,12 +23,13 @@
 5. [刷机主线：十篇文档按序读](#刷机主线十篇文档按序读)
 6. [官方更新与回滚](#官方更新与回滚)
 7. [固件与校验值](#固件与校验值)
-8. [工具箱：八个实用小工具](#工具箱八个实用小工具)
-9. [遇到问题先查这里](#遇到问题先查这里)
-10. [高频问答](#高频问答)
-11. [参与贡献与维护约定](#参与贡献与维护约定)
-12. [交流与反馈](#交流与反馈)
-13. [Star 趋势](#star-趋势)
+8. [在线自动更新与发布](#在线自动更新与发布)
+9. [工具箱：八个实用小工具](#工具箱八个实用小工具)
+10. [遇到问题先查这里](#遇到问题先查这里)
+11. [高频问答](#高频问答)
+12. [参与贡献与维护约定](#参与贡献与维护约定)
+13. [交流与反馈](#交流与反馈)
+14. [Star 趋势](#star-趋势)
 
 ---
 
@@ -38,7 +39,7 @@
 .
 ├── README.md                         ← 你正在看的项目入口
 ├── index.html                        ← 根入口，访问后跳转到 site/
-├── docs/                             ← 10 篇刷机、配置、升级与排障文档（主线内容）
+├── docs/                             ← 11 篇刷机、配置、升级、排障与自动更新文档
 ├── site/                             ← 零构建静态阅读站点
 │   ├── index.html
 │   ├── app.js                        ← 交互：弹窗、搜索、进度、主题
@@ -61,8 +62,11 @@
 │   ├── check-site-markdown.js        ← Markdown 渲染器回归（含 10 篇文档全量渲染）
 │   ├── check-site-interaction.js     ← 阅读站点交互回归（headless 浏览器）
 │   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
+│   ├── check-auto-update.js          ← 更新清单、版本、重试与完整性回归
+│   ├── build-release-metadata.js     ← 标签发布时生成 OTA 审计快照
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
 ├── .github/workflows/checks.yml      ← 只读 CI：语法、一致性、回归、站点冒烟
+├── .github/workflows/release.yml     ← vMAJOR.MINOR.PATCH 标签构建与 Release
 ├── luci/
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
@@ -187,6 +191,28 @@ OpenWrt 官方已为 RE-CP-02 提供 25.12.6 稳定镜像（本仓库于 2026-11
 
 - https://openwrt.org/toh/hwdata/jdcloud/jdcloud_re-cp-02
 - https://firmware-selector.openwrt.org/?id=jdcloud_re-cp-02&target=ramips%2Fmt7621&version=25.12.6
+
+---
+
+## 在线自动更新与发布
+
+本项目的在线更新对象是路由器固件清单，不是桌面安装包。`ota/manifest.json` 由 `scripts/ota-check.sh` 和 LuCI 更新中心读取；检测、重试、设备/发行版门禁、文件大小与 SHA-256 校验完成后，仍需用户在 SSH 中人工确认 `sysupgrade`。项目不会网页一键刷写，也不会把 Electron/Tauri 的更新格式硬套到 OpenWrt 上。
+
+仓库已经接入：
+
+- `.github/workflows/checks.yml`：每次 `main` 推送/PR 做静态、清单、站点和更新链路回归；
+- `.github/workflows/release.yml`：`vMAJOR.MINOR.PATCH` 标签生成源代码快照、OTA 清单审计快照和 `SHA256SUMS.txt`，正式标签才创建 GitHub Release；
+- `scripts/check-auto-update.js`：版本比较、预发布版本、网络失败重试、错误地址、损坏文件和清单契约测试；
+- `docs/AUTO_UPDATE.md`：架构、发布步骤、失败处理、签名限制和外部验收清单。
+
+本地验证：
+
+```powershell
+node scripts/check-auto-update.js
+node scripts/check-consistency.js --verbose
+```
+
+当前没有设备端数字签名信任根或发布私钥，因此签名状态明确为 **BLOCKED**；运行时使用 HTTPS + SHA-256 + 人工确认。真实 GitHub Release、CDN 下载和 RE-CP-02 刷写属于外部验收，不会被本地测试伪造为已完成。
 
 ---
 

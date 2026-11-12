@@ -1,0 +1,16 @@
+{
+  "updated_at": "2026-11-12",
+  "priority_legend": {"P0":"安全/数据丢失/无法运行", "P1":"核心功能或业务故障", "P2":"重要体验与维护能力", "P3":"UI/性能优化", "P4":"特色扩展", "P5":"文档交付"},
+  "items": [
+    {"priority":"P1","category":"A","feature":"LuCI OTA 后台任务并发门禁","before":"存在文件检查后再写锁的竞态，cmdline 判断对 shell 子进程不稳定","after":"原子 mkdir 锁目录、kill -0 PID 存活复核、OTA_BUSY 复用现有任务","reference":"OpenWrt LuCI/rpcd 操作边界；本项目现有设计","difficulty":"中","status":"completed","test":"scripts/check-ota-wrapper.js；Linux CI 动态双启动"},
+    {"priority":"P1","category":"A","feature":"远程 manifest 输入校验","before":"SHA/size 主要在后续校验阶段处理","after":"下载前限制 HTTPS、64 位十六进制 SHA、正数且不溢出的大小","reference":"OpenWrt 固件下载/校验实践","difficulty":"低","status":"completed","test":"bash -n + project-health-check + 静态审计"},
+    {"priority":"P2","category":"B","feature":"服务停止误触保护","before":"插件中心 stop 直接调用 init 脚本","after":"停止前 window.confirm，启动/重启行为保持不变","reference":"LuCI 管理页面的破坏性操作确认惯例","difficulty":"低","status":"completed","test":"Node syntax；需真机 UI 验收"},
+    {"priority":"P2","category":"B","feature":"站点模态键盘可访问性","before":"焦点可能通过 Tab 离开模态","after":"文档与搜索模态各自循环 Tab/Shift+Tab，Esc 分层关闭保留","reference":"Argon/现代管理台响应式与可访问性方向","difficulty":"低","status":"completed","test":"Edge CDP 9/9；Node syntax"},
+    {"priority":"P2","category":"B","feature":"OTA 包装器自动回归","before":"无专用包装器锁测试","after":"新增静态门禁，Linux /proc 环境执行动态双进程回归并纳入 CI","reference":"项目既有零依赖检查脚本","difficulty":"中","status":"completed","test":"Windows 10/10 静态通过；动态分支因无 /proc 跳过"},
+    {"priority":"P1","category":"A","feature":"可验证在线更新发布链路","before":"有 OTA manifest 和检测脚本，但没有标签发布资产、清单契约回归或发布快照","after":"新增清单契约/版本/重试/损坏文件回归、Range 断点续传、标签构建工作流、OTA 审计快照和 SHA256SUMS；签名状态明确为阻塞","reference":"OpenWrt sysupgrade、GitHub Releases/Actions、RAUC、fwupd 的清单/完整性实践","difficulty":"中","status":"completed_local_blocked_external","test":"scripts/check-auto-update.js 12 pass；project-health-check 42 pass/0 fail/9 skip；未创建真实 Release、未连接设备"},
+    {"priority":"P1","category":"A","feature":"RE-CP-02 真机验收","before":"未验证","after":"未在本轮执行","reference":"项目自身设备文档与 OpenWrt 设备支持资料","difficulty":"高","status":"blocked_external","test":"需要受控测试路由器，不可用静态检查替代"},
+    {"priority":"P2","category":"B","feature":"LuCI ACL/RPC、OTA 下载、温度/无线、服务启停集成测试","before":"静态审计与语法检查","after":"未在本轮执行","reference":"openwrt/luci、OpenClash、Argon","difficulty":"高","status":"blocked_external","test":"部署到目标固件后按 README 验收"},
+    {"priority":"P3","category":"B","feature":"站点跨浏览器/窄屏视觉验收","before":"Edge 本地交互未验收","after":"Edge 交互已通过；Firefox/Safari 与截图对比未做","reference":"luci-theme-argon 响应式策略","difficulty":"中","status":"partial","test":"需要浏览器矩阵与视觉截图"},
+    {"priority":"P5","category":"D","feature":"数据库、登录、多用户、云同步","before":"未实现","after":"明确不适合当前静态指南定位","reference":"竞品研究未发现需要引入","difficulty":"高","status":"rejected","test":"范围审查"}
+  ]
+}

@@ -53,6 +53,10 @@ jobs:
               fail=1
             fi
           done < <(git ls-files '*.sh')
+          if ! bash -n luci-app-ota-check/root/usr/bin/ota-check-ui; then
+            echo "::error file=luci-app-ota-check/root/usr/bin/ota-check-ui::bash -n 失败"
+            fail=1
+          fi
           exit $fail
 
       - name: JavaScript 语法检查
@@ -71,6 +75,12 @@ jobs:
 
       - name: LuCI 更新中心视图逻辑（版本按钮按清单生成）
         run: node scripts/check-ota-view.js
+
+      - name: OTA LuCI 包装器并发门禁回归
+        run: node scripts/check-ota-wrapper.js
+
+      - name: 在线更新契约与失败场景回归
+        run: node scripts/check-auto-update.js
 
       - name: PassWall 节点列表行为回归
         run: node scripts/check-passwall-node-list-enhance.js

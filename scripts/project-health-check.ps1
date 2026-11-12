@@ -184,7 +184,7 @@ if (-not $bashCommand) {
     }
 }
 if ($bashCommand) {
-    foreach ($file in $shScripts) {
+    foreach ($file in @($shScripts) + @($extraExecFiles)) {
         $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
         # Git Bash 的 bash 接受正斜杠路径；反斜杠会被当转义符
         $posixPath = $file.FullName -replace '\\', '/'
@@ -199,7 +199,7 @@ if ($bashCommand) {
         }
     }
 } else {
-    Skip "bash not found; shell syntax checks skipped ($($shScripts.Count) files)"
+    Skip "bash not found; shell syntax checks skipped ($(@($shScripts).Count + @($extraExecFiles).Count) files)"
 }
 foreach ($file in $execCheckTargets) {
     $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')

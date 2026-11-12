@@ -1,0 +1,12 @@
+{
+  "project_name": "OpenWrt-Flashing-Guide-RE-CP02",
+  "root_path": "E:\\移动云盘同步盘\\OpenWrt-Flashing-Guide-RE-CP02",
+  "repository": "https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02.git",
+  "branch": "main",
+  "head_before_task": "df41b34",
+  "project_type": ["OpenWrt 设备指南", "静态文档站点", "LuCI 应用与主题", "路由器/宿主脚本"],
+  "technology_stack": ["Markdown", "原生 HTML/CSS/JavaScript", "LuCI JavaScript", "POSIX sh/BusyBox ash", "PowerShell", "Node.js 检查脚本"],
+  "build_model": "零依赖、无构建；静态站点通过 HTTP 服务运行，LuCI 文件按 README 部署到路由器",
+  "task_id": "2026-11-12-recp02-evolution-01",
+  "scope": "仅当前项目根目录；不操作其他项目、不推送远程、不执行真实刷写"
+}

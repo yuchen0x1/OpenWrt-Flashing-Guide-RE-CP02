@@ -7,6 +7,7 @@
  *   1. 打开文档弹窗后焦点是否落在可聚焦元素上（旧代码聚焦到无 tabindex 的遮罩，等于没聚焦）
  *   2. 点「下一篇」后焦点是否还留在弹窗内（旧代码原按钮被 innerHTML 替换，焦点掉回 body）
  *   3. 搜索框清空后，在途请求是否还会把旧结果写回来（旧代码先 return 后递增代次）
+ *   4. 文档/搜索模态的 Tab 是否保持在当前对话框内
  * 外加 Esc 分层关闭与页面异常计数。
  *
  * 用法：
@@ -160,6 +161,21 @@ async function main() {
     check('翻页切换了文档标题', !!(r.value && r.value.before !== r.value.after), JSON.stringify(r.value));
     check('翻页后焦点仍在弹窗内（不掉回 body）', !!(r.value && r.value.activeId === 'modal-title'), JSON.stringify(r.value));
 
+    r = await evaluate(`
+      (() => {
+        const last = document.querySelector('.doc-next');
+        const close = document.querySelector('button[data-close-modal]');
+        if (!last || !close) return { error: 'missing dialog focus targets' };
+        last.focus();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        return {
+          activeIsFirst: document.activeElement === close,
+          active: document.activeElement && document.activeElement.outerHTML
+        };
+      })()
+    `);
+    check('文档弹窗 Tab 到末尾后回到首个控件', !!(r.value && r.value.activeIsFirst), JSON.stringify(r.value));
+
     /* 3：Esc 关闭文档 */
     r = await evaluate(`
       (async () => {
@@ -179,6 +195,9 @@ async function main() {
         document.getElementById('search-open').click();
         await new Promise(r => setTimeout(r, 200));
         const input = document.getElementById('search-input');
+        input.focus();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        const focusTrapped = document.activeElement === input;
         input.value = 'openwrt';
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.value = '';
@@ -187,11 +206,13 @@ async function main() {
         const results = document.getElementById('search-results');
         return {
           resultCount: results.querySelectorAll('.search-result').length,
-          stillOpen: document.getElementById('search-modal').classList.contains('is-open')
+          stillOpen: document.getElementById('search-modal').classList.contains('is-open'),
+          focusTrapped
         };
       })()
     `);
     check('清空搜索后旧结果不回写', !!(r.value && r.value.resultCount === 0), JSON.stringify(r.value));
+    check('搜索弹窗 Tab 保持焦点在输入框', !!(r.value && r.value.focusTrapped), JSON.stringify(r.value));
 
     /* 5：Esc 分层关闭搜索 */
     r = await evaluate(`

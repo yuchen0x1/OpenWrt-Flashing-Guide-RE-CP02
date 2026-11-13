@@ -23,7 +23,7 @@
 - 插件中心准确显示服务执行结果，防止重复操作。
 - 统一站点与 Glass 主题视觉，完善桌面侧栏、移动导航和三态主题。
 
-[完整更新记录](docs/releases/release-notes.md) · [下载 v1.5.0](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.0)
+[完整更新记录（16 个版本，含升级与兼容说明）](docs/releases/release-notes.md) · [下载 v1.5.0](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.0)
 
 ## 目录
 

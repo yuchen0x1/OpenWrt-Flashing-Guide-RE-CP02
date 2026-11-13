@@ -52,11 +52,12 @@ rm -f /tmp/luci-indexcache*   # 刷新 LuCI 菜单缓存
 /etc/init.d/rpcd restart      # 加载新 ACL
 ```
 
-浏览器 Ctrl+F5。部署过旧版（`dashboard.js` / `dashboard2.js`）的先删除旧文件：
+浏览器 Ctrl+F5。确认新视图正常后，部署过旧版（`dashboard.js` / `dashboard2.js` / `dashboard3.js`）的可删除旧文件：
 
 ```sh
 rm -f /www/luci-static/resources/view/plugin-hub/dashboard.js \
-      /www/luci-static/resources/view/plugin-hub/dashboard2.js
+      /www/luci-static/resources/view/plugin-hub/dashboard2.js \
+      /www/luci-static/resources/view/plugin-hub/dashboard3.js
 ```
 
 增删按钮：编辑 `dashboard4.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
@@ -71,4 +72,4 @@ PassWall/插件升级不会覆盖本页面；卸载直接删除上面三个文�
 
 部署时同时更新 menu.d JSON 和 `dashboard4.js`。新的视图仅在 `fs.exec` 的退出码为 0 时报告已执行；命令失败、RPC 拒绝与状态刷新失败分别提示。同一服务的操作会合并门禁，避免两张关联卡片重复提交。运行徽标依据 procd 实例的 `running` 字段，不能以服务记录存在来判断存活。
 
-旧的 `dashboard3.js` 保留作回退材料，正常菜单不再引用它。`node scripts/check-plugin-hub.js` 验证上述逻辑，但没有替代路由器上的 RPC、权限和实际服务验收。
+当前目录仅保留菜单引用的 `dashboard4.js`。需要查看旧实现时，可从 Git 的 `v1.4.1` 标签获取 `dashboard3.js` 及对应的菜单文件。`node scripts/check-plugin-hub.js` 验证上述逻辑，但没有替代路由器上的 RPC、权限和实际服务验收。

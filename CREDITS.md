@@ -43,7 +43,7 @@ PDF 记录中说明 Telnet 代码“源自网络，添加核心逻辑注释；�
 
 ## 2026-11-13 产品研究参考
 
-本轮仅参考设计与行为，新增代码独立实现，没有移植第三方代码或新增依赖。源码位置、许可证及采用范围详见 [升级报告](EVOLUTION_REPORT.md)。
+以下项目仅用于设计与行为参考，新增代码独立实现，没有移植第三方代码或新增依赖。项目源码、许可证及采用范围如下。
 
 - [OpenWrt Firmware Selector](https://github.com/openwrt/firmware-selector-openwrt-org)：镜像用途与 SHA256 并列呈现（CC0-1.0）。
 - [OpenWrt ASU](https://github.com/openwrt/asu)：输入校验和有界资源参数（GPL-2.0）。

@@ -178,7 +178,7 @@ node scripts/check-site-markdown.js
 node scripts/check-site-interaction.js http://127.0.0.1:18765/site/
 ```
 
-浏览器回归使用隔离的 headless Edge / Chrome，截图输出到 `outputs/site-check/`。完整项目审查、5 个开源参考项目、测试范围和后续优先级见 [本轮升级报告](EVOLUTION_REPORT.md)。界面截图见 [桌面端](docs/images/evolution-desktop.png) 和 [移动端](docs/images/evolution-mobile.png)。
+浏览器回归使用隔离的 headless Edge / Chrome，截图输出到 `outputs/site-check/`。开源参考项目、许可证及采用范围见 [来源与致谢](CREDITS.md)。界面截图见 [桌面端](docs/images/evolution-desktop.png) 和 [移动端](docs/images/evolution-mobile.png)。临时测试输出、发布构建目录和本地工作报告不纳入版本控制，可在测试结束后删除。
 
 ---
 

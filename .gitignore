@@ -51,12 +51,15 @@ router-net-diagnose-result.txt
 work/
 outputs/
 tmp/
+release/
 tmp_*.json
 .zcode/
 .mimosa/
 
 # 本地工作记录（审计报告、升级过程笔记），不随仓库发布
 .autonomous-upgrade/
+.evolution/
+/EVOLUTION_REPORT.md
 
 # OS/editor noise
 .DS_Store
@@ -66,4 +69,5 @@ Thumbs.db
 
 # Reviewed documentation screenshots
 !docs/images/
-!docs/images/evolution-*.png
+!docs/images/evolution-desktop.png
+!docs/images/evolution-mobile.png

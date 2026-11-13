@@ -88,13 +88,15 @@ git tag v1.4.1
 git push origin v1.4.1
 ```
 
-`.github/workflows/release.yml` 会执行完整检查，生成：
+`.github/workflows/release.yml` 先调用与 main 相同的完整检查（包括浏览器回归），全部通过后检出对应标签、核对提交并生成：
 
 - `OpenWrt-Flashing-Guide-RE-CP02-vX.Y.Z.tar.gz`；
 - `ota-manifest-vX.Y.Z.json`（包含清单快照、提交号和签名未配置的明确状态）；
 - `SHA256SUMS.txt`。
 
 正式标签推送会创建 GitHub Release；手动运行工作流只构建并上传 Actions artifact，不创建 Release。工作流不会上传伪造固件，也不会替换已有 Release。
+
+用户可见的版本历史保存在 `docs/releases/release-notes.md`，README 的“最新更新”仅展示当前版本；Release 正文由脚本提取对应版本，避免把开发提交标题当成使用说明。将三个资产下载到同一目录后，可执行 `sha256sum -c SHA256SUMS.txt` 验证文件完整性。
 
 ## 5. 更新源与故障处理
 

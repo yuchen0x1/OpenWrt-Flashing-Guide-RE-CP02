@@ -69,6 +69,9 @@ $httpPaths = @(
     "site/",
     "site/styles.css",
     "site/app.js",
+    "site/markdown.js",
+    "site/guide-tools.js",
+    "site/firmware-check.js",
     "site/favicon.svg",
     "site/assets/hero-router.jpg",
     "firmware/README.md",
@@ -116,8 +119,9 @@ if ((@($appDocs | Sort-Object) -join "`n") -eq (@($diskDocs | Sort-Object) -join
 # JS list is collected by directory glob, so newly added scripts are covered without editing this file.
 # Inline scripts in *.htm/*.html embed LuCI template tags (<% %>) and cannot be fed to node --check;
 # the passwall node-list enhance block is verified separately by scripts/check-passwall-node-list-enhance.js.
-$jsFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.js" |
-    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+$sourceRoots = @("site", "scripts", "luci", "luci-app-ota-check", "luci-app-plugin-hub", "luci-app-status-panel", "luci-theme-glass") | ForEach-Object { Join-Path $root $_ }
+$jsFiles = @(Get-ChildItem -LiteralPath $sourceRoots -Recurse -File -Filter "*.js" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware|tmp|outputs|work)[\\/]' } |
     Sort-Object FullName)
 if (Get-Command node -ErrorAction SilentlyContinue) {
     foreach ($file in $jsFiles) {
@@ -139,8 +143,8 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 }
 
 # PowerShell list is collected by directory glob as well, including this script itself.
-$psFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.ps1" |
-    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+$psFiles = @(Get-ChildItem -LiteralPath (Join-Path $root "scripts") -Recurse -File -Filter "*.ps1" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware|tmp|outputs|work)[\\/]' } |
     Sort-Object FullName)
 foreach ($file in $psFiles) {
     $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/')
@@ -155,8 +159,8 @@ foreach ($file in $psFiles) {
 
 # sh scripts: syntax + exec permission check (Win32 上优先使用 Git Bash)
 # .sh 脚本语法用 bash -n / sh -n 校验；可执行脚本按仓库约定需保留 +x 权限位。
-$shScripts = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "*.sh" |
-    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware)[\\/]' } |
+$shScripts = @(Get-ChildItem -LiteralPath (Join-Path $root "scripts") -Recurse -File -Filter "*.sh" |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|firmware|tmp|outputs|work)[\\/]' } |
     Sort-Object FullName)
 # 无扩展名的路由器端包装器也要保留 +x：LuCI 通过 fs.exec 直接执行它。
 $extraExecFiles = @(Get-ChildItem -LiteralPath (Join-Path $root "luci-app-ota-check/root/usr/bin") -File -ErrorAction SilentlyContinue |

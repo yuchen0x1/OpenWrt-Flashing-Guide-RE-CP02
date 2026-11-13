@@ -39,3 +39,14 @@ PDF 记录中说明 Telnet 代码“源自网络，添加核心逻辑注释；�
   - 仓库标注为 MIT License，本文仅参考其 RE-CP-02 设备资料、DTS/分区边界和配置组织方式，不复制其源码或二进制。
 - 1-1-2 的 RE-CP-02 实验补丁： https://gist.github.com/1-1-2/335dbc8e138f39fb8fe6243d424fe476
   - 该 Gist 用于技术比对和风险提示，不作为本仓库可直接刷写的固件来源。
+
+
+## 2026-11-13 产品研究参考
+
+本轮仅参考设计与行为，新增代码独立实现，没有移植第三方代码或新增依赖。源码位置、许可证及采用范围详见 [升级报告](EVOLUTION_REPORT.md)。
+
+- [OpenWrt Firmware Selector](https://github.com/openwrt/firmware-selector-openwrt-org)：镜像用途与 SHA256 并列呈现（CC0-1.0）。
+- [OpenWrt ASU](https://github.com/openwrt/asu)：输入校验和有界资源参数（GPL-2.0）。
+- [owut](https://github.com/efahl/owut)：检查、下载、验证、安装分阶段（GPL-2.0-only）。
+- [Docsify](https://github.com/docsifyjs/docsify)：静态文档索引与章节定位（MIT）。
+- [VitePress](https://github.com/vuejs/vitepress)：标题优先的本地搜索（MIT）。

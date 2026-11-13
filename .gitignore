@@ -63,3 +63,7 @@ tmp_*.json
 Thumbs.db
 .idea/
 .vscode/
+
+# Reviewed documentation screenshots
+!docs/images/
+!docs/images/evolution-*.png

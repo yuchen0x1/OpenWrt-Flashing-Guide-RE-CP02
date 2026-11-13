@@ -14,6 +14,17 @@
 
 ---
 
+## 最新更新
+
+### v1.5.0 · 2026-11-13
+
+- 浏览器本地校验下载文件 SHA256，显示改名及不匹配结果，文件不上传。
+- 搜索结果直达命中章节，网络失败可重试，阅读位置保留更可靠。
+- 插件中心准确显示服务执行结果，防止重复操作。
+- 统一站点与 Glass 主题视觉，完善桌面侧栏、移动导航和三态主题。
+
+[完整更新记录](docs/releases/release-notes.md) · [下载 v1.5.0](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.0)
+
 ## 目录
 
 1. [仓库里有什么](#仓库里有什么)
@@ -43,6 +54,8 @@
 ├── site/                             ← 零构建静态阅读站点
 │   ├── index.html
 │   ├── app.js                        ← 交互：弹窗、搜索、进度、主题
+│   ├── guide-tools.js                ← 请求缓存、章节索引、SHA256 数据逻辑
+│   ├── firmware-check.js             ← 浏览器本地文件校验交互
 │   ├── markdown.js                   ← Markdown 渲染器（纯函数，可单测）
 │   ├── styles.css
 │   └── assets/                       ← 站点图片资源
@@ -144,6 +157,28 @@ node scripts/check-consistency.js
 ```
 
 它比对 `firmware/SHA256SUMS.txt`、`docs/09`、`firmware/README.md`、`README.md`、`site/index.html` 与 `ota/manifest.json` 中的版本号、哈希、下载链接和校验日期，任一不一致即以非零退出码失败。
+
+---
+
+## 本地文件校验与可靠搜索
+
+阅读站点的固件区新增本地 SHA256 校验表单：选择下载文件，核对 `firmware/SHA256SUMS.txt` 中的对应条目，再点击“计算并比对 SHA256”。文件名一致时自动选中条目；改名文件需要手动指定。文件仅在浏览器内读取，不会上传，单文件上限 64 MiB，需要 localhost 或 HTTPS 下可用的 WebCrypto。
+
+结果分别显示文件名及摘要一致、摘要一致但文件名不同、摘要不一致。**匹配不证明发布者身份或设备兼容性**；仍需核对官方来源、RE-CP-02 型号、镜像用途和备份。
+
+搜索支持标题优先、正文摘要、命中章节定位，以及失败文档重试。成功读取的章节在当前页面会话内复用，失败不会永久缓存；关闭搜索后旧响应不会写回。文档加载失败可直接重新读取，已有阅读位置不会被失败页面覆盖。
+
+开发验证（Node.js 24；无 npm 依赖，无前端构建步骤）：
+
+```sh
+node scripts/check-guide-tools.js
+node scripts/check-plugin-hub.js
+node scripts/check-site-markdown.js
+# 先按上文启动本地 HTTP 服务，再运行浏览器回归
+node scripts/check-site-interaction.js http://127.0.0.1:18765/site/
+```
+
+浏览器回归使用隔离的 headless Edge / Chrome，截图输出到 `outputs/site-check/`。完整项目审查、5 个开源参考项目、测试范围和后续优先级见 [本轮升级报告](EVOLUTION_REPORT.md)。界面截图见 [桌面端](docs/images/evolution-desktop.png) 和 [移动端](docs/images/evolution-mobile.png)。
 
 ---
 

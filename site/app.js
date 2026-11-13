@@ -28,10 +28,11 @@ const inlineMarkdown = markdown.inlineMarkdown;
 const renderMarkdown = markdown.renderMarkdown;
 
 let lastFocusedElement = null;
-let searchIndexPromise = null;
+const loadDocText = window.GuideTools.createTextLoader(window.fetch.bind(window));
 let searchRequestId = 0;
 let currentDocIndex = -1;
 let docRequestId = 0;
+let loadedDocPath = null;
 
 function snippetFor(line, term) {
   const plain = stripMarkdown(line).trim();
@@ -51,14 +52,16 @@ function titleFor(path) {
 }
 function saveCurrentDocProgress() {
   const bodyEl = $('#modal-body');
-  if (modal.classList.contains('is-open') && bodyEl && currentDocIndex > -1) {
-    writeReadingProgress(docs[currentDocIndex][3], bodyEl.scrollTop);
+  if (modal.classList.contains('is-open') && bodyEl && loadedDocPath) {
+    writeReadingProgress(loadedDocPath, bodyEl.scrollTop);
   }
 }
-async function openDoc(path) {
+async function openDoc(path, section = '') {
   const resolvedPath = normalizeDocPath(path);
+  if (!docs.some(doc => doc[3] === resolvedPath) && resolvedPath !== '../firmware/README.md') return;
   const requestId = ++docRequestId;
   saveCurrentDocProgress();
+  loadedDocPath = null;
   const wasOpen = modal.classList.contains('is-open');
   currentDocIndex = docs.findIndex(doc => doc[3] === resolvedPath);
   if (!wasOpen) lastFocusedElement = document.activeElement;
@@ -70,9 +73,7 @@ async function openDoc(path) {
   /* 焦点必须落在可聚焦元素上：遮罩层 div 没有 tabindex，focus() 是空操作 */
   if (!wasOpen) $('#modal-title').focus();
   try {
-    const response = await fetch(resolvedPath);
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const rendered = renderMarkdown(await response.text());
+    const rendered = renderMarkdown(await loadDocText(resolvedPath));
     if (requestId !== docRequestId) return;
     const nav = currentDocIndex > -1
       ? '<nav class="doc-pager" aria-label="文档翻页">'
@@ -86,6 +87,7 @@ async function openDoc(path) {
         + '</div></details>'
       : '';
     $('#modal-body').innerHTML = tocBlock + '<div class="doc-content">' + rendered.html + '</div>' + nav;
+    loadedDocPath = resolvedPath;
     $$('.doc-pager [data-doc]').forEach(button => button.addEventListener('click', () => openDoc(button.dataset.doc)));
     $$('.doc-toc-list [data-toc]').forEach(button => button.addEventListener('click', () => {
       const target = $('#' + button.dataset.toc, $('#modal-body'));
@@ -101,17 +103,26 @@ async function openDoc(path) {
     if (saved > 0 && saved < bodyEl.scrollHeight) {
       bodyEl.scrollTop = saved;
     }
+    if (/^sec-\d+$/.test(section)) {
+      const target = document.getElementById(section);
+      if (target) {
+        target.classList.add('search-target');
+        target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      }
+    }
   } catch (error) {
     if (requestId !== docRequestId) return;
-    $('#modal-body').innerHTML = '<p>无法读取文档：' + escapeHtml(error.message) + '</p>';
+    $('#modal-body').innerHTML = '<p role="alert">无法读取文档：' + escapeHtml(error.message) + '</p><button class="button button-quiet" id="doc-retry" type="button">重新读取</button>';
+    $('#doc-retry').addEventListener('click', () => openDoc(resolvedPath, section));
   }
 }
 function closeDoc() {
   /* 关闭前记录当前滚动位置（按文档路径持久化） */
-  const bodyEl = $('#modal-body');
-  if (bodyEl && currentDocIndex > -1) {
-    writeReadingProgress(docs[currentDocIndex][3], bodyEl.scrollTop);
-  }
+  saveCurrentDocProgress();
+  loadedDocPath = null;
+  ++docRequestId;
   modal.classList.remove('is-open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
@@ -184,26 +195,82 @@ $$('.copy-button').forEach(button => button.addEventListener('click', async even
   }
 }));
 $('#all-docs').addEventListener('click', () => openDoc(docs[0][3]));
-$('#theme-toggle').addEventListener('click', () => {
-  const light = !document.body.classList.contains('light-mode');
-  document.body.classList.toggle('light-mode', light);
+const themeButton = $('#theme-toggle');
+const themeOrder = ['auto', 'light', 'dark'];
+const themeIcons = { auto: '◐', light: '☀', dark: '☾' };
+const themeLabels = { auto: '跟随系统', light: '浅色', dark: '深色' };
+function readThemeMode() {
   try {
-    localStorage.setItem('re-cp-02-theme', light ? 'light' : 'dark');
+    const value = localStorage.getItem('re-cp-02-theme');
+    return themeOrder.includes(value) ? value : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+function systemPrefersLight() {
+  return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+}
+function applyThemeMode(mode, announce = false) {
+  const light = mode === 'light' || (mode === 'auto' && systemPrefersLight());
+  document.body.classList.toggle('light-mode', light);
+  document.body.dataset.themeMode = mode;
+  themeButton.textContent = themeIcons[mode];
+  themeButton.title = '主题模式：' + themeLabels[mode] + '（点击切换）';
+  themeButton.setAttribute('aria-label', '主题模式：' + themeLabels[mode]);
+  themeButton.setAttribute('aria-pressed', String(mode === 'light'));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', light ? '#edf1ec' : '#0d0f12');
+  if (announce) showToast('已切换为' + themeLabels[mode]);
+}
+let themeMode = readThemeMode();
+applyThemeMode(themeMode);
+themeButton.addEventListener('click', () => {
+  themeMode = themeOrder[(themeOrder.indexOf(themeMode) + 1) % themeOrder.length];
+  try {
+    localStorage.setItem('re-cp-02-theme', themeMode);
   } catch {
     // 隐私模式/禁用存储下无法持久化，模式仅在本次会话生效
   }
-  $('#theme-toggle').setAttribute('aria-pressed', String(light));
-  showToast(light ? '已切换浅色模式' : '已切换深色模式');
+  applyThemeMode(themeMode, true);
 });
-let savedTheme = null;
-try {
-  savedTheme = localStorage.getItem('re-cp-02-theme');
-} catch {
-  // 同上：存储不可用时按默认深色继续
+if (window.matchMedia) {
+  const colorScheme = window.matchMedia('(prefers-color-scheme: light)');
+  const onSchemeChange = () => { if (themeMode === 'auto') applyThemeMode('auto'); };
+  if (colorScheme.addEventListener) colorScheme.addEventListener('change', onSchemeChange);
+  else if (colorScheme.addListener) colorScheme.addListener(onSchemeChange);
 }
-if (savedTheme === 'light') {
-  document.body.classList.add('light-mode');
-  $('#theme-toggle').setAttribute('aria-pressed', 'true');
+
+/* Vantage-style section context: keep the rail, bottom bar, and breadcrumb
+   synchronized with the section currently visible in the reading guide. */
+const sectionNames = { top: '总览', journey: '流程', firmware: '固件', docs: '文档' };
+const sectionLinks = $$('[data-section-link]');
+const breadcrumbCurrent = $('#breadcrumb-current');
+function setActiveSection(id) {
+  sectionLinks.forEach(link => {
+    const active = link.dataset.sectionLink === id;
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  if (breadcrumbCurrent) breadcrumbCurrent.textContent = sectionNames[id] || sectionNames.top;
+}
+const sectionTargets = Object.keys(sectionNames)
+  .map(id => document.getElementById(id))
+  .filter(Boolean);
+if ('IntersectionObserver' in window && sectionTargets.length) {
+  const sectionObserver = new IntersectionObserver(entries => {
+    const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) setActiveSection(visible.target.id);
+  }, { threshold: [0.12, 0.35, 0.65], rootMargin: '-16% 0px -56% 0px' });
+  sectionTargets.forEach(section => sectionObserver.observe(section));
+}
+sectionLinks.forEach(link => link.addEventListener('click', () => setActiveSection(link.dataset.sectionLink)));
+const railToggle = $('#rail-toggle');
+if (railToggle) {
+  railToggle.addEventListener('click', () => {
+    const pinned = document.body.classList.toggle('rail-pinned');
+    railToggle.setAttribute('aria-pressed', String(pinned));
+    showToast(pinned ? '导航栏已固定展开' : '导航栏已收起');
+  });
 }
 const searchModal = $('#search-modal');
 const searchInput = $('#search-input');
@@ -219,6 +286,7 @@ function openSearch() {
 }
 function closeSearch() {
   if (!searchModal.classList.contains('is-open')) return;
+  ++searchRequestId;
   searchModal.classList.remove('is-open');
   searchModal.setAttribute('aria-hidden', 'true');
   if (!modal.classList.contains('is-open')) document.body.classList.remove('modal-open');
@@ -239,7 +307,7 @@ function trapDialogFocus(event, dialog) {
   if (!elements.length) return;
   const first = elements[0];
   const last = elements[elements.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
+  if (event.shiftKey && (document.activeElement === first || !elements.includes(document.activeElement))) {
     event.preventDefault();
     last.focus();
   } else if (!event.shiftKey && document.activeElement === last) {
@@ -251,25 +319,15 @@ function trapDialogFocus(event, dialog) {
 $('#search-open').addEventListener('click', openSearch);
 $$('[data-close-search]').forEach(element => element.addEventListener('click', closeSearch));
 async function getSearchIndex() {
-  if (searchIndexPromise) return searchIndexPromise;
-  searchIndexPromise = Promise.all(docs.map(async doc => {
+  return Promise.all(docs.map(async doc => {
     try {
-      const response = await fetch(doc[3]);
-      const body = response.ok ? await response.text() : '';
-      /* 逐行索引，附带行号便于定位；同一文档内的命中按行序收集 */
-      const lines = body.replace(/\r/g, '').split('\n');
-      const entries = [];
-      for (let i = 0; i < lines.length; i++) {
-        entries.push({ line: lines[i], lower: lines[i].toLowerCase(), no: i + 1 });
-      }
-      return { doc, entries };
+      return window.GuideTools.indexDocument(doc, await loadDocText(doc[3]));
     } catch {
-      return { doc, entries: [] };
+      return { doc, entries: [], failed: true };
     }
   }));
-  return searchIndexPromise;
 }
-searchInput.addEventListener('input', async () => {
+async function runSearch() {
   /* 先作废在途请求：清空输入后旧响应仍会回来，不递增代次就会把已清空的列表重新写满 */
   const requestId = ++searchRequestId;
   const term = searchInput.value.trim().toLowerCase();
@@ -279,39 +337,39 @@ searchInput.addEventListener('input', async () => {
   }
   searchResults.innerHTML = '<p class="search-hint">正在搜索…</p>';
   const index = await getSearchIndex();
-  if (requestId !== searchRequestId) return;
+  if (requestId !== searchRequestId || !searchModal.classList.contains('is-open')) return;
   /* 每篇文档收集命中行（最多 6 条），再整体拼接，按文档顺序排列 */
-  const perDocLimit = 6;
   const totalLimit = 30;
-  const groups = [];
-  let total = 0;
-  for (const item of index) {
-    if (total >= totalLimit) break;
-    const hits = [];
-    for (const entry of item.entries) {
-      if (entry.lower.includes(term)) {
-        hits.push(snippetFor(entry.line, term));
-        if (hits.length >= perDocLimit) break;
-      }
-    }
-    if (!hits.length) continue;
+  const matches = window.GuideTools.searchDocuments(index, term, totalLimit);
+  const total = matches.reduce((sum, item) => sum + item.hits.length, 0);
+  const groups = matches.map(item => {
     const groupHead = '<div class="search-group-title">' + escapeHtml(item.doc[1]) + '</div>';
-    const groupBody = hits.map(s => '<button class="search-result" data-doc="' + item.doc[3] + '" type="button"><span class="snippet">' + s + '</span></button>').join('');
-    groups.push(groupHead + groupBody);
-    total += hits.length;
-  }
+    const groupBody = item.hits.map(hit => '<button class="search-result" data-doc="' + item.doc[3] + '" data-section="' + hit.section + '" type="button"><small>第 ' + hit.no + ' 行 · 打开所在章节</small><span class="snippet">' + snippetFor(hit.line, term) + '</span></button>').join('');
+    return groupHead + groupBody;
+  });
   searchResults.innerHTML = groups.length
     ? groups.join('') + (total >= totalLimit ? '<p class="search-hint">已展示前 ' + total + ' 条，请输入更具体关键词缩小范围</p>' : '')
     : '<p class="search-hint">没有找到匹配内容</p>';
-  $$('.search-result').forEach(element => element.addEventListener('click', () => { closeSearch(); openDoc(element.dataset.doc); }));
-});
+  const failed = index.filter(item => item.failed).length;
+  if (failed) {
+    searchResults.insertAdjacentHTML('afterbegin', '<div class="search-hint" role="status">' + failed + ' 篇文档读取失败，搜索结果不完整。<button id="search-retry" class="button button-quiet small-button" type="button">重试失败文档</button></div>');
+    $('#search-retry').addEventListener('click', runSearch);
+  }
+  $$('.search-result').forEach(element => element.addEventListener('click', () => { closeSearch(); openDoc(element.dataset.doc, element.dataset.section); }));
+}
+searchInput.addEventListener('input', runSearch);
 document.addEventListener('keydown', event => {
   if (searchModal.classList.contains('is-open')) {
     trapDialogFocus(event, searchModal);
   } else if (modal.classList.contains('is-open')) {
     trapDialogFocus(event, modal);
   }
-  if (event.key === '/' && document.activeElement !== searchInput) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    openSearch();
+    return;
+  }
+  if (event.key === '/' && !event.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
     event.preventDefault();
     openSearch();
   }

@@ -36,7 +36,7 @@
 | --- | --- |
 | `root/usr/share/luci/menu.d/luci-app-plugin-hub.json` | `/usr/share/luci/menu.d/` |
 | `root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json` | `/usr/share/rpcd/acl.d/` |
-| `root/www/luci-static/resources/view/plugin-hub/dashboard3.js` | `/www/luci-static/resources/view/plugin-hub/` |
+| `root/www/luci-static/resources/view/plugin-hub/dashboard4.js` | `/www/luci-static/resources/view/plugin-hub/` |
 
 ## 部署
 
@@ -47,7 +47,7 @@ python -m http.server 18767 --bind 0.0.0.0
 uclient-fetch -q -O /usr/share/luci/menu.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/luci/menu.d/luci-app-plugin-hub.json"
 uclient-fetch -q -O /usr/share/rpcd/acl.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json"
 mkdir -p /www/luci-static/resources/view/plugin-hub
-uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard3.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard3.js"
+uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard4.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard4.js"
 rm -f /tmp/luci-indexcache*   # 刷新 LuCI 菜单缓存
 /etc/init.d/rpcd restart      # 加载新 ACL
 ```
@@ -59,9 +59,16 @@ rm -f /www/luci-static/resources/view/plugin-hub/dashboard.js \
       /www/luci-static/resources/view/plugin-hub/dashboard2.js
 ```
 
-增删按钮：编辑 `dashboard3.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
+增删按钮：编辑 `dashboard4.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
 
 - `init: '服务名'`：状态徽标与快捷操作的探测对象（`/etc/init.d/` 下的脚本名）。文件管理器按手工安装方式可能没有 init 脚本（如用 rc.local 启动），此时会显示「未安装」且不出现快捷操作，按实际情况改掉或删掉 `init` 字段即可；
 - `lanOnly: true`：给独立端口卡片加「仅限局域网」徽标。
 
 PassWall/插件升级不会覆盖本页面；卸载直接删除上面三个文件并清缓存。
+
+
+## v1.5.0 可靠性修复（dashboard4）
+
+部署时同时更新 menu.d JSON 和 `dashboard4.js`。新的视图仅在 `fs.exec` 的退出码为 0 时报告已执行；命令失败、RPC 拒绝与状态刷新失败分别提示。同一服务的操作会合并门禁，避免两张关联卡片重复提交。运行徽标依据 procd 实例的 `running` 字段，不能以服务记录存在来判断存活。
+
+旧的 `dashboard3.js` 保留作回退材料，正常菜单不再引用它。`node scripts/check-plugin-hub.js` 验证上述逻辑，但没有替代路由器上的 RPC、权限和实际服务验收。

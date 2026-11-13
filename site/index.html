@@ -10,10 +10,27 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <aside class="vantage-rail" aria-label="快速导航">
+    <a class="rail-brand" href="#top" aria-label="返回总览">
+      <span class="rail-brand-mark"><i></i><i></i><i></i></span>
+      <span class="rail-brand-copy"><b>RE-CP-02</b><small>OPENWRT LAB</small></span>
+    </a>
+    <nav class="rail-nav" aria-label="页面区段">
+      <a href="#top" data-section-link="top" aria-current="page"><span class="rail-icon">⌂</span><span class="rail-label">总览</span></a>
+      <a href="#journey" data-section-link="journey"><span class="rail-icon">◎</span><span class="rail-label">流程</span></a>
+      <a href="#firmware" data-section-link="firmware"><span class="rail-icon">◈</span><span class="rail-label">固件</span></a>
+      <a href="#docs" data-section-link="docs"><span class="rail-icon">▤</span><span class="rail-label">文档</span></a>
+    </nav>
+    <div class="rail-footer">
+      <button class="rail-toggle" id="rail-toggle" type="button" aria-label="固定或收起导航栏" aria-pressed="false">⇥</button>
+      <span class="rail-status"><b></b> LOCAL GUIDE</span>
+    </div>
+  </aside>
   <header class="topbar">
     <a class="brand" href="#top" aria-label="返回首页"><span class="brand-mark"><i></i><i></i><i></i></span><span><b>RE-CP-02</b><small>OPENWRT LAB</small></span></a>
+    <div class="breadcrumb" aria-label="当前位置"><span>FIELD GUIDE</span><b>/</b><strong id="breadcrumb-current">总览</strong></div>
     <nav class="topnav" aria-label="主导航"><a href="#journey">流程</a><a href="#firmware">固件</a><a href="#docs">文档</a></nav>
-    <div class="top-actions"><button class="icon-button" id="theme-toggle" type="button" aria-label="切换主题" aria-pressed="false">◐</button><button class="search-button" id="search-open" type="button" aria-label="搜索文档"><span>搜索文档</span><kbd>/</kbd></button></div>
+    <div class="top-actions"><button class="icon-button" id="theme-toggle" type="button" aria-label="主题模式：跟随系统" aria-pressed="false">◐</button><button class="search-button" id="search-open" type="button" aria-label="打开命令面板"><span>命令 / 搜索</span><kbd>Ctrl K</kbd></button></div>
   </header>
   <main id="top">
     <section class="hero shell">
@@ -37,14 +54,31 @@
       <article class="firmware-card glass-panel"><div class="card-topline"><span class="tag tag-muted">HISTORICAL BUILD</span><span class="file-size">10.19 MB · 仓库入口</span></div><h3>25.12.0-rc2 <span>无 TF 卡驱动</span></h3><p>历史 sysupgrade 固件 · 不作为当前官方升级基线</p><div class="hash-row"><code>3624d4ae…c294f3d</code><button class="copy-button" data-copy="3624d4aeed6777e733ae472734dd9b84e6714e91f5fdc64723c2dc069c294f3d" type="button" aria-label="复制 SHA256">⧉</button></div><div class="card-actions"><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noopener">查看 GitHub 仓库 <span>↗</span></a><span class="verified">需自行核对来源</span></div></article>
       <article class="firmware-card glass-panel personal"><div class="card-topline"><span class="tag tag-amber">PERSONAL BUILD</span><span class="file-size">10.19 MB · 仓库入口</span></div><h3>25.12.1 <span>自用版本</span></h3><p>作者个人验证配置 · 使用前请确认兼容性</p><div class="hash-row"><code>7aae9a00…e50529</code><button class="copy-button" data-copy="7aae9a00623cc4276f8c7e7e2dbfccb519a8514a4fa4880cc94bd66eb5e50529" type="button" aria-label="复制 SHA256">⧉</button></div><div class="card-actions"><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noopener">查看 GitHub 仓库 <span>↗</span></a><span class="verified">需自行核对来源</span></div></article>
     </div><aside class="verify-card glass-panel"><div class="verify-icon">✓</div><div class="eyebrow">INTEGRITY CHECK</div><h3>官方基线已确认</h3><p>OpenWrt 官方已提供 RE-CP-02 的 25.12.6 镜像。下载后仍需按官方 SHA256 清单核对，个人构建不与官方镜像混用。</p><div class="verify-line"><span>ASSETS</span><b>OFFICIAL SHA256</b></div><div class="verify-line"><span>STATUS</span><b>25.12.6</b></div><a class="text-link" href="../firmware/README.md" data-doc="../firmware/README.md">查看完整清单 <span>↗</span></a></aside></div></section>
+    <section class="shell integrity-panel glass-panel" aria-labelledby="integrity-title">
+      <div class="integrity-intro"><h2 id="integrity-title">下载完成，先核对文件。</h2><p>选择本地文件，与仓库 SHA256 清单比对。文件不会上传，最大 64 MiB。</p><p class="integrity-note">摘要匹配只表示与清单内容一致，不能证明来源可信或设备兼容。刷写前仍需核对 RE-CP-02 型号、镜像用途和官方来源。</p></div>
+      <form id="firmware-check" class="integrity-form">
+        <label for="firmware-file">1. 选择下载的文件</label><input id="firmware-file" type="file" aria-describedby="integrity-title">
+        <label for="firmware-expected">2. 核对清单条目</label><select id="firmware-expected" disabled><option value="">正在加载清单…</option></select>
+        <div class="integrity-actions"><button class="button button-primary" id="firmware-verify" type="submit" disabled>计算并比对 SHA256</button><button class="button button-quiet" id="firmware-reload" type="button" hidden>重读清单</button></div>
+        <output id="firmware-result" role="status" aria-live="polite">准备读取清单…</output>
+      </form>
+    </section>
     <section class="section shell" id="docs"><div class="section-heading"><div><div class="eyebrow">03 / FIELD NOTES</div><h2>从准备到持续升级，逐章展开。</h2></div><button class="button button-quiet small-button" id="all-docs" type="button">浏览全部文档 <span>↗</span></button></div><div class="doc-grid" id="doc-grid"></div></section>
     <section class="safety-banner shell glass-panel"><div class="safety-mark">!</div><div><div class="eyebrow">NON-REVERSIBLE OPERATIONS</div><h2>写入 U-Boot、重建 eMMC 分区之前，先停一下。</h2><p>任何设备识别、Factory 备份或 SHA256 校验不一致，都应该停止继续。漂亮的界面不会替代正确的判断。</p></div><button class="button button-danger" data-doc="../docs/02-flashing.md" type="button">查看高风险步骤 <span>↗</span></button></section>
   </main>
   <footer class="footer shell"><span>RE-CP-02 OPENWRT LAB</span><span>DOCUMENTATION / RECOVERY / HOME GATEWAY</span><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noreferrer">GitHub ↗</a></footer>
+  <nav class="mobile-nav" aria-label="移动端快速导航">
+    <a href="#top" data-section-link="top" aria-current="page"><span>⌂</span><small>总览</small></a>
+    <a href="#journey" data-section-link="journey"><span>◎</span><small>流程</small></a>
+    <a href="#firmware" data-section-link="firmware"><span>◈</span><small>固件</small></a>
+    <a href="#docs" data-section-link="docs"><span>▤</span><small>文档</small></a>
+  </nav>
   <div class="modal" id="doc-modal" aria-hidden="true"><div class="modal-backdrop" data-close-modal></div><section class="modal-panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><div class="eyebrow">FIELD NOTE</div><h2 id="modal-title" tabindex="-1">文档</h2></div><button class="icon-button" data-close-modal type="button" aria-label="关闭">×</button></div><div class="modal-body" id="modal-body"><div class="loading">正在读取文档…</div></div></section></div>
   <div class="toast" id="toast" role="status"></div>
   <div class="search-modal" id="search-modal" aria-hidden="true"><div class="modal-backdrop" data-close-search></div><section class="search-panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="search-title"><div class="search-head"><label class="sr-only" id="search-title" for="search-input">搜索文档</label><input id="search-input" type="search" placeholder="搜索章节、命令、IP 地址…" autocomplete="off"><kbd>ESC</kbd></div><div class="search-results" id="search-results"><p class="search-hint">输入关键词开始搜索</p></div></section></div>
   <script src="markdown.js"></script>
+  <script src="guide-tools.js"></script>
   <script src="app.js"></script>
+  <script src="firmware-check.js"></script>
 </body>
 </html>

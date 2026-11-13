@@ -4,20 +4,20 @@
    ============================================================ */
 
 :root {
-	--g-bg: #070b18;
-	--g-text: rgba(235, 240, 255, .92);
-	--g-text-dim: rgba(235, 240, 255, .55);
+	--g-bg: #0d0f12;
+	--g-text: rgba(241, 244, 239, .94);
+	--g-text-dim: rgba(211, 220, 215, .58);
 	--g-glass: rgba(255, 255, 255, .055);
 	--g-glass-strong: rgba(255, 255, 255, .09);
-	--g-border: rgba(255, 255, 255, .10);
-	--g-border-bright: rgba(255, 255, 255, .18);
-	--g-accent1: #8b5cf6;
-	--g-accent2: #22d3ee;
-	--g-accent3: #f472b6;
-	--g-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 45%, #22d3ee 100%);
-	--g-radius: 16px;
-	--g-blur: blur(20px) saturate(150%);
-	--g-shadow: 0 8px 32px rgba(0, 0, 0, .38);
+	--g-border: rgba(230, 236, 239, .12);
+	--g-border-bright: rgba(230, 236, 239, .22);
+	--g-accent1: #c8f031;
+	--g-accent2: #9be8f5;
+	--g-accent3: #718087;
+	--g-grad: linear-gradient(135deg, #c8f031 0%, #a8d735 46%, #9be8f5 100%);
+	--g-radius: 8px;
+	--g-blur: blur(18px) saturate(125%);
+	--g-shadow: 0 8px 32px rgba(0, 0, 0, .34);
 	--g-font: "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -251,7 +251,7 @@ input:focus, select:focus, textarea:focus, .cbi-dropdown:focus {
 input::placeholder { color: rgba(235, 240, 255, .3); }
 select option { background: #10162c; color: var(--g-text); }
 
-.cbi-input-checkbox, .cbi-input-radio { accent-color: #8b5cf6; }
+.cbi-input-checkbox, .cbi-input-radio { accent-color: var(--g-accent1); }
 
 /* ---------- 按钮 ---------- */
 
@@ -538,7 +538,7 @@ a:hover { color: #c4b5fd; }
 li [data-title]::before { color: var(--g-text-dim) !important; }
 
 .loading-spin::after,
-.spin::after { border-color: rgba(139, 92, 246, .3) !important; border-top-color: #8b5cf6 !important; }
+.spin::after { border-color: rgba(200, 240, 49, .3) !important; border-top-color: var(--g-accent1) !important; }
 
 .ifacebadge, .ifacebox {
 	background: var(--g-glass) !important;
@@ -635,9 +635,9 @@ html.glass-light .glass-bg {
 		linear-gradient(160deg, #eef1f8 0%, #e7ecf7 55%, #e2e9f6 100%);
 }
 html.glass-light .glass-bg .gb { opacity: .22; }
-html.glass-light .glass-bg .gb-1 { background: radial-gradient(circle, #b39dff, transparent 65%); }
-html.glass-light .glass-bg .gb-2 { background: radial-gradient(circle, #7dd3fc, transparent 65%); }
-html.glass-light .glass-bg .gb-3 { background: radial-gradient(circle, #f9a8d4, transparent 65%); }
+html.glass-light .glass-bg .gb-1 { background: radial-gradient(circle, #c8f031, transparent 65%); }
+html.glass-light .glass-bg .gb-2 { background: radial-gradient(circle, #9be8f5, transparent 65%); }
+html.glass-light .glass-bg .gb-3 { background: radial-gradient(circle, #aab6ad, transparent 65%); }
 html.glass-light .glass-bg .gb-grid {
 	background-image:
 		linear-gradient(rgba(70, 90, 140, .05) 1px, transparent 1px),
@@ -701,13 +701,13 @@ html.glass-light .modal, html.glass-light .cbi-modal, html.glass-light .dialog {
 	background: rgba(255, 255, 255, .96) !important;
 	box-shadow: 0 24px 64px rgba(30, 40, 70, .35) !important;
 }
-html.glass-light .modal a { color: #6366f1 !important; }
+html.glass-light .modal a { color: #0e7280 !important; }
 
 /* 登录页 */
 html.glass-light .login-orb { opacity: .3; }
-html.glass-light .login-orb.orb-1 { background: radial-gradient(circle, #b39dff, transparent 65%); }
-html.glass-light .login-orb.orb-2 { background: radial-gradient(circle, #7dd3fc, transparent 65%); }
-html.glass-light .login-orb.orb-3 { background: radial-gradient(circle, #f9a8d4, transparent 65%); }
+html.glass-light .login-orb.orb-1 { background: radial-gradient(circle, #c8f031, transparent 65%); }
+html.glass-light .login-orb.orb-2 { background: radial-gradient(circle, #9be8f5, transparent 65%); }
+html.glass-light .login-orb.orb-3 { background: radial-gradient(circle, #aab6ad, transparent 65%); }
 html.glass-light .login-container {
 	background: rgba(255, 255, 255, .62) !important;
 	box-shadow: var(--g-shadow), inset 0 1px 0 rgba(255, 255, 255, .8);
@@ -725,8 +725,8 @@ html.glass-light .login-form .errorbox {
 }
 
 /* 杂项 */
-html.glass-light a { color: #6366f1; }
-html.glass-light a:hover { color: #7c3aed; }
+html.glass-light a { color: #0e7280; }
+html.glass-light a:hover { color: #5b760d; }
 html.glass-light .cbi-progressbar { background: rgba(30, 40, 70, .08) !important; }
 html.glass-light .zonebadge .ifacebadge { background: rgba(30, 40, 70, .06) !important; }
 
@@ -757,4 +757,53 @@ html.glass-light .zonebadge .ifacebadge { background: rgba(30, 40, 70, .06) !imp
 	.glass-mode-toggle {
 		transition: none !important;
 	}
+}
+
+/* Vantage fusion layer: keep Glass's translucent surfaces, but use the
+ * graphite/lime/ice hierarchy of the reviewed Vantage shell. This is a
+ * project-specific adaptation; no Vantage source or assets are copied. */
+body {
+	background:
+		radial-gradient(ellipse 70% 45% at 78% -8%, rgba(200, 240, 49, .07), transparent 68%),
+		radial-gradient(ellipse 58% 50% at 2% 34%, rgba(71, 177, 207, .08), transparent 72%),
+		var(--g-bg) !important;
+}
+.glass-bg {
+	background:
+		radial-gradient(ellipse 90% 65% at 70% -10%, rgba(126, 157, 67, .20), transparent 60%),
+		linear-gradient(160deg, #0d0f12 0%, #11161a 55%, #0d1215 100%);
+}
+.glass-bg .gb-1 { background: radial-gradient(circle, #c8f031, transparent 65%); opacity: .16; }
+.glass-bg .gb-2 { background: radial-gradient(circle, #49bfd3, transparent 65%); opacity: .18; }
+.glass-bg .gb-3 { background: radial-gradient(circle, #708087, transparent 65%); opacity: .10; }
+.main-left {
+	background: rgba(16, 19, 23, .88) !important;
+	border-right-color: rgba(230, 236, 239, .11);
+}
+.main-left #mainmenu .mainmenu-li > a,
+.main-left ul li > a {
+	border-radius: 5px;
+	margin: 2px 8px;
+	padding: 10px 12px;
+}
+.main-left li.active > a::before,
+.main-left li.slide-menu-active > a::before {
+	left: -8px;
+	width: 2px;
+	background: var(--g-accent1);
+	box-shadow: 0 0 14px rgba(200, 240, 49, .45);
+}
+header .fill .container .flex1 .brand,
+.main-left .brand {
+	background: linear-gradient(100deg, var(--g-accent1), var(--g-accent2));
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+.glass-mode-toggle:hover,
+.glass-mode-toggle:focus-visible {
+	color: var(--g-accent1) !important;
+	border-color: rgba(200, 240, 49, .42) !important;
+}
+@media (max-width: 600px) {
+	.main-left { background: rgba(16, 19, 23, .96) !important; }
 }

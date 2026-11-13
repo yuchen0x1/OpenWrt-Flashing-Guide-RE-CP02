@@ -8,6 +8,7 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -20,6 +21,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: 检出后确认 shell 脚本有可执行位
         run: |
@@ -69,6 +74,15 @@ jobs:
             fi
           done < <(git ls-files '*.js')
           exit $fail
+
+      - name: 阅读器、校验工具与文档映射回归
+        run: node scripts/check-guide-tools.js
+
+      - name: 插件中心服务操作回归
+        run: node scripts/check-plugin-hub.js
+
+      - name: Markdown 渲染回归
+        run: node scripts/check-site-markdown.js
 
       - name: 版本 / 哈希一致性
         run: node scripts/check-consistency.js --verbose
@@ -156,6 +170,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: 起本地静态服务并请求关键资源
         run: |
           python3 -m http.server 18791 --bind 127.0.0.1 >/tmp/http.log 2>&1 &
@@ -164,6 +182,7 @@ jobs:
           sleep 2
           fail=0
           for path in "" "site/" "site/styles.css" "site/app.js" \
+                      "site/markdown.js" "site/guide-tools.js" "site/firmware-check.js" \
                       "site/favicon.svg" "site/assets/hero-router.jpg" \
                       "firmware/README.md" "firmware/SHA256SUMS.txt" \
                       "docs/09-official-upgrade.md" "ota/manifest.json"; do
@@ -172,17 +191,6 @@ jobs:
             [ "$code" = "200" ] || { echo "::error::/$path 返回 $code"; fail=1; }
           done
           exit $fail
-
-      - name: 站点引用的文档没有遗漏
-        run: |
-          on_disk=$(find docs -maxdepth 1 -name '*.md' -printf '%f\n' | sort)
-          in_site=$(grep -oE "\.\./docs/[0-9a-z-]+\.md" site/app.js | sed 's|\.\./docs/||' | sort)
-          if [ "$on_disk" != "$in_site" ]; then
-            echo "docs/ 与 site/app.js 的文档映射不一致"
-            diff <(echo "$on_disk") <(echo "$in_site") || true
-            exit 1
-          fi
-          echo "文档映射一致（$(echo "$on_disk" | wc -l) 篇）"
 
       - name: 站点交互回归（headless Chromium）
         run: |

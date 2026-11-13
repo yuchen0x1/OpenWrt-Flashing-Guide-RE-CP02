@@ -2,6 +2,8 @@
 
 自制 LuCI 主题：深空渐变 + 三色光斑背景，玻璃拟态卡片（半透明 + backdrop blur），渐变主色贯穿侧栏指示条、按钮、进度条与登录页。组件骨架沿用 argon 的 cascade.css 保证功能完整，视觉与排版全部由本主题的 `glass.css` 自绘。
 
+当前视觉层融合了对 [luci-theme-vantage](https://github.com/anothaDev/luci-theme-vantage) 的界面审查结论：采用石墨灰底、荧光黄状态强调、冰青色链接、收紧的控件间距与更明确的侧栏活动指示。这里只移植设计语言与令牌，没有复制 Vantage 的源码、模板或资源；原主题仍保持本项目的 Glass 结构与 Argon 兼容边界。
+
 **1.3.0 起支持深浅双模式**：顶栏右上角 ◐ 按钮在「跟随系统 → 浅色（晨曦微光）→ 深色」之间循环，选择持久化到浏览器 `localStorage`；浅色面板为浅白磨砂玻璃底 + 同套渐变主色，登录页跟随系统自动切换（登录页无按钮）。早期模式决策脚本放在 `<head>`（head_meta.ut），浅色用户不会先看到深色再闪一下。
 
 适用于 ImmortalWrt 25.12（ucode 模板，包管理器 apk）。24.10（opkg、旧 ucode 路径）未适配。
@@ -32,7 +34,7 @@ uci set luci.main.mediaurlbase="/luci-static/argon"; uci commit luci
 
 **发布约定（强制）**：uhttpd 对 `/luci-static/` 资源按 URL 启发式强缓存，只改内容不改 URL 时浏览器不会更新。因此：
 
-- 改 `glass.css` → 必须同步递增 `header.ut` 与 `header_login.ut` 里的引用版本参数（当前 `?v=3`，每次改动 +1）；
+- 改 `glass.css` → 必须同步递增 `header.ut` 与 `header_login.ut` 里的引用版本参数（当前 `?v=4`，每次改动 +1）；
 - 改视图 JS → 必须换文件名，并同步 menu.d 的 view path（先例：更新中心 `update-center.js` → `update-center2.js` → `update-center3.js`）；
 - 部署涉及 menu.d / 模板时：`rm -f /tmp/luci-indexcache*` + `/etc/init.d/rpcd restart`。
 

@@ -12,7 +12,7 @@
 <head>
 	{% include("themes/" + theme + "/head_meta", { hostname: hostname, node: node, media: media }) %}
 	<link rel="stylesheet" href="/luci-static/argon/css/cascade.css?v=2.4.7">
-	<link rel="stylesheet" href="{{ media }}/css/glass.css?v=3">
+	<link rel="stylesheet" href="{{ media }}/css/glass.css?v=4">
 	{% if (node?.css): %}
 	<link rel="stylesheet" href="{{ resource }}/{{ node.css}}">
 	{% endif -%}

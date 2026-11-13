@@ -24,7 +24,6 @@
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 
 const URL_BASE = process.argv[2] || 'http://127.0.0.1:18793/site/';
@@ -74,7 +73,9 @@ async function main() {
     console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok || !detail ? '' : ' :: ' + detail));
   }
 
-  const userDataDir = path.join(os.tmpdir(), 'recp02-site-test-' + process.pid);
+  const outputDir = path.resolve(__dirname, '../outputs/site-check');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const userDataDir = path.join(outputDir, 'browser-' + process.pid);
   const child = spawn(browser, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=' + PORT, '--user-data-dir=' + userDataDir, 'about:blank'
@@ -102,10 +103,12 @@ async function main() {
     ws = new WebSocket(page.webSocketDebuggerUrl);
     let nextId = 0;
     const pending = new Map();
+    const pageErrors = [];
 
     await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
     ws.onmessage = ev => {
       const msg = JSON.parse(ev.data);
+      if (msg.method === 'Runtime.exceptionThrown') pageErrors.push(msg.params.exceptionDetails.text);
       if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); }
     };
 
@@ -227,11 +230,92 @@ async function main() {
     `);
     check('Esc 关闭搜索并解除滚动锁', !!(r.value && !r.value.searchOpen && !r.value.bodyLocked), JSON.stringify(r.value));
 
+    /* Failed search documents can be retried, and results navigate to their section. */
+    // Reload with an injected one-shot network failure before app initialization.
+    const injected = await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      const originalFetch = window.fetch;
+      let failOnce = true;
+      window.fetch = (url, options) => {
+        if (String(url).includes('AUTO_UPDATE') && failOnce) { failOnce = false; return Promise.resolve({ok:false,status:503}); }
+        return originalFetch(url, options);
+      };
+    ` });
+    await send('Page.navigate', { url: URL_BASE });
+    await sleep(1000);
+    r = await evaluate(`(async () => {
+      document.getElementById('search-open').click();
+      const input = document.getElementById('search-input');
+      input.value = 'manifest'; input.dispatchEvent(new Event('input'));
+      await new Promise(r => setTimeout(r, 700));
+      const retry = document.getElementById('search-retry');
+      const sawFailure = !!retry;
+      if (retry) retry.click();
+      await new Promise(r => setTimeout(r, 700));
+      const recovered = !document.getElementById('search-retry');
+      const result = document.querySelector('.search-result[data-section="sec-1"]') || document.querySelector('.search-result[data-section^="sec-"]');
+      if (result) result.click();
+      await new Promise(r => setTimeout(r, 300));
+      return { sawFailure, recovered, landed: !!document.querySelector('.search-target'), focused: document.activeElement.classList.contains('search-target') };
+    })()`);
+    check('搜索失败明确提示且可重试恢复', !!(r.value && r.value.sawFailure && r.value.recovered), JSON.stringify(r.value));
+    check('搜索结果跳到命中章节并聚焦', !!(r.value && r.value.landed && r.value.focused), JSON.stringify(r.value));
+    await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: injected.result.identifier });
+
+    /* Closing while a search is in flight must not repaint stale results. */
+    const delayed = await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      const originalFetch = window.fetch;
+      window.fetch = (url, options) => String(url).includes('/docs/')
+        ? new Promise(resolve => setTimeout(resolve, 250)).then(() => originalFetch(url, options)) : originalFetch(url, options);
+    ` });
+    await send('Page.navigate', { url: URL_BASE });
+    await sleep(1000);
+    r = await evaluate(`(async () => {
+      document.getElementById('search-open').click();
+      const input = document.getElementById('search-input');
+      input.value = 'openwrt'; input.dispatchEvent(new Event('input'));
+      document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}));
+      await new Promise(r => setTimeout(r, 700));
+      document.getElementById('search-open').click();
+      return { count: document.querySelectorAll('.search-result').length, empty: input.value === '' };
+    })()`);
+    check('关闭后重新打开搜索不显示在途旧结果', !!(r.value && r.value.empty && r.value.count === 0), JSON.stringify(r.value));
+    await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: delayed.result.identifier });
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}))`);
+
+    /* Use a deliberately non-firmware file against the real repository manifest. */
+    r = await evaluate(`(async () => {
+      const transfer = new DataTransfer(); transfer.items.add(new File(['abc'], 'test.bin'));
+      const input = document.getElementById('firmware-file'); input.files = transfer.files; input.dispatchEvent(new Event('change'));
+      const select = document.getElementById('firmware-expected'); select.value = '0'; select.dispatchEvent(new Event('change'));
+      document.getElementById('firmware-check').requestSubmit();
+      await new Promise(r => setTimeout(r, 300));
+      const result = document.getElementById('firmware-result');
+      const mismatch = result.dataset.state === 'mismatch' && result.textContent.includes('ba7816bf');
+      select.value = '1'; select.dispatchEvent(new Event('change'));
+      return { mismatch, invalidated: result.dataset.state === '', enabled: !document.getElementById('firmware-verify').disabled };
+    })()`);
+    check('实际文件输入计算 SHA256 并拒绝不匹配文件', !!(r.value && r.value.mismatch), JSON.stringify(r.value));
+    check('更换校验目标清除旧结论并恢复操作', !!(r.value && r.value.invalidated && r.value.enabled), JSON.stringify(r.value));
+    await send('Page.navigate', { url: URL_BASE });
+    await sleep(1000);
+    for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['tablet', 820, 1180], ['dark', 1440, 1000]]) {
+      if (name === 'dark') await evaluate(`applyThemeMode('dark')`);
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: name === 'mobile' });
+      await evaluate(`document.querySelector('.integrity-panel').scrollIntoView({behavior:'instant',block:'center'})`);
+      await sleep(900);
+      r = await evaluate(`({ fits: document.documentElement.scrollWidth <= window.innerWidth, form: document.getElementById('firmware-check').getBoundingClientRect().width > 0 })`);
+      check(name + ' 视口没有横向溢出且校验表单可见', !!(r.value && r.value.fits && r.value.form), JSON.stringify(r.value));
+      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      if (shot.result && shot.result.data) fs.writeFileSync(path.join(outputDir, name + '.png'), Buffer.from(shot.result.data, 'base64'));
+    }
+    check('浏览器没有未处理脚本异常', pageErrors.length === 0, pageErrors.join('; '));
     ws.close();
   } finally {
     clearTimeout(timer);
     try { child.kill(); } catch {}
-    try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {}
+    if (path.dirname(userDataDir) === outputDir && path.basename(userDataDir) === 'browser-' + process.pid) {
+      try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {}
+    }
   }
 
   const failed = results.filter(item => !item.ok).length;

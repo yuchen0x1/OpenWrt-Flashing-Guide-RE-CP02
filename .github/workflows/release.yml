@@ -17,43 +17,58 @@ permissions:
   contents: write
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    permissions:
+      contents: read
+
   build:
     name: 构建发布资产
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: 确定版本标签
         id: version
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then tag="${{ inputs.tag }}"; fi
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then tag="$INPUT_TAG"; fi
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "非法标签: $tag"; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse "$tag^{commit}")" ]] || { echo "检出提交与标签不一致"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: 运行发布前检查
+        env:
+          GITHUB_SHA: ${{ steps.version.outputs.commit }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           node scripts/check-consistency.js --verbose
           node scripts/check-auto-update.js
-          node scripts/build-release-metadata.js --version "${{ steps.version.outputs.tag }}" --output "release/ota-manifest-${{ steps.version.outputs.tag }}.json"
+          node scripts/build-release-metadata.js --version "$RELEASE_TAG" --output "release/ota-manifest-${RELEASE_TAG}.json"
+          node scripts/build-release-notes.js "$RELEASE_TAG" outputs/release-notes.md
 
       - name: 构建源代码快照
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           mkdir -p release
-          git archive --format=tar.gz --prefix="OpenWrt-Flashing-Guide-RE-CP02-${RELEASE_TAG}/" "${GITHUB_SHA}" \
+          git archive --format=tar.gz --prefix="OpenWrt-Flashing-Guide-RE-CP02-${RELEASE_TAG}/" HEAD \
             -o "release/OpenWrt-Flashing-Guide-RE-CP02-${RELEASE_TAG}.tar.gz"
-          sha256sum release/* > release/SHA256SUMS.txt
+          (cd release && sha256sum *.tar.gz *.json > SHA256SUMS.txt)
 
       - name: 上传构建资产
         uses: actions/upload-artifact@v4
@@ -71,5 +86,5 @@ jobs:
           gh release create "$RELEASE_TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "$RELEASE_TAG" \
-            --generate-notes \
+            --notes-file outputs/release-notes.md \
             --verify-tag

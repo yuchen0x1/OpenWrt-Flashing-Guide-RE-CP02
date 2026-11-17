@@ -10,16 +10,16 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <aside class="vantage-rail" aria-label="快速导航">
+  <aside class="vantage-rail" aria-label="快速导航" data-i18n-attr="aria-label:quickNav">
     <a class="rail-brand" href="#top" aria-label="返回总览">
       <span class="rail-brand-mark"><i></i><i></i><i></i></span>
       <span class="rail-brand-copy"><b>RE-CP-02</b><small>OPENWRT LAB</small></span>
     </a>
     <nav class="rail-nav" aria-label="页面区段">
-      <a href="#top" data-section-link="top" aria-current="page"><span class="rail-icon">⌂</span><span class="rail-label">总览</span></a>
-      <a href="#journey" data-section-link="journey"><span class="rail-icon">◎</span><span class="rail-label">流程</span></a>
-      <a href="#firmware" data-section-link="firmware"><span class="rail-icon">◈</span><span class="rail-label">固件</span></a>
-      <a href="#docs" data-section-link="docs"><span class="rail-icon">▤</span><span class="rail-label">文档</span></a>
+      <a href="#top" data-section-link="top" aria-current="page"><span class="rail-icon">⌂</span><span class="rail-label" data-i18n="overview">总览</span></a>
+      <a href="#journey" data-section-link="journey"><span class="rail-icon">◎</span><span class="rail-label" data-i18n="journey">流程</span></a>
+      <a href="#firmware" data-section-link="firmware"><span class="rail-icon">◈</span><span class="rail-label" data-i18n="firmware">固件</span></a>
+      <a href="#docs" data-section-link="docs"><span class="rail-icon">▤</span><span class="rail-label" data-i18n="docs">文档</span></a>
     </nav>
     <div class="rail-footer">
       <button class="rail-toggle" id="rail-toggle" type="button" aria-label="固定或收起导航栏" aria-pressed="false">⇥</button>
@@ -28,28 +28,28 @@
   </aside>
   <header class="topbar">
     <a class="brand" href="#top" aria-label="返回首页"><span class="brand-mark"><i></i><i></i><i></i></span><span><b>RE-CP-02</b><small>OPENWRT LAB</small></span></a>
-    <div class="breadcrumb" aria-label="当前位置"><span>FIELD GUIDE</span><b>/</b><strong id="breadcrumb-current">总览</strong></div>
-    <nav class="topnav" aria-label="主导航"><a href="#journey">流程</a><a href="#firmware">固件</a><a href="#docs">文档</a></nav>
-    <div class="top-actions"><button class="icon-button" id="theme-toggle" type="button" aria-label="主题模式：跟随系统" aria-pressed="false">◐</button><button class="search-button" id="search-open" type="button" aria-label="打开命令面板"><span>命令 / 搜索</span><kbd>Ctrl K</kbd></button></div>
+    <div class="breadcrumb" aria-label="当前位置"><span>FIELD GUIDE</span><b>/</b><strong id="breadcrumb-current" data-i18n="overview">总览</strong></div>
+    <nav class="topnav" aria-label="主导航"><a href="#journey" data-i18n="journey">流程</a><a href="#firmware" data-i18n="firmware">固件</a><a href="#docs" data-i18n="docs">文档</a></nav>
+    <div class="top-actions"><select id="locale-toggle" class="locale-toggle" aria-label="界面语言"><option value="auto">自动 / Auto</option><option value="zh-CN">简体中文</option><option value="en-US">English</option></select><button class="icon-button" id="theme-toggle" type="button" aria-label="主题模式：跟随系统" aria-pressed="false">◐</button><button class="search-button" id="search-open" type="button" aria-label="打开命令面板"><span data-i18n="commandSearch">命令 / 搜索</span><kbd>Ctrl K</kbd></button></div>
   </header>
   <main id="top">
     <section class="hero shell">
       <div class="hero-copy">
         <div class="eyebrow"><span class="pulse"></span> FIELD GUIDE / MT7621 PLATFORM</div>
-        <h1>把一台路由器，<br><span><em>变成你的网络实验室。</em></span></h1>
-        <p class="hero-lede">面向 JDCloud RE-CP-02 的 OpenWrt 刷机、恢复与家庭网关配置指南。每一步都标注前置条件、风险等级与可验证结果。</p>
-        <div class="hero-actions"><a class="button button-primary" href="#journey">开始配置 <span>↗</span></a><a class="button button-quiet" href="#firmware">查看固件 <span>↓</span></a></div>
+        <h1 data-i18n="heroTitle">把一台路由器，<br><span><em>变成你的网络实验室。</em></span></h1>
+        <p class="hero-lede" data-i18n="heroLede">面向 JDCloud RE-CP-02 的 OpenWrt 刷机、恢复与家庭网关配置指南。每一步都标注前置条件、风险等级与可验证结果。</p>
+        <div class="hero-actions"><a class="button button-primary" href="#journey" data-i18n="startSetup">开始配置 <span>↗</span></a><a class="button button-quiet" href="#firmware" data-i18n="viewFirmware">查看固件 <span>↓</span></a></div>
         <div class="hero-meta"><span><b class="status-dot"></b>项目正常更新中</span><span>OPENWRT 25.12.x</span><span>最后校验 2026.11.09</span></div>
       </div>
       <div class="hero-visual"><div class="visual-frame"><div class="visual-image" role="img" aria-label="网络实验室中的家用路由器"></div><div class="visual-label label-top"><span class="mini-dot"></span> DEVICE READY</div><div class="visual-label label-bottom"><span>RE-CP-02</span><small>64GB eMMC / 4x LAN</small></div><div class="scan-line"></div></div><div class="hero-float glass-panel"><span class="float-icon">⌁</span><span><b>安全路径</b><small>备份 → Recovery → 验证</small></span></div></div>
     </section>
     <section class="trust-strip shell" aria-label="项目状态"><div><small>SUPPORTED DEVICE</small><strong>JDCloud RE-CP-02 / LuBan</strong></div><div><small>PLATFORM</small><strong>MT7621 · ramips</strong></div><div><small>ASSET STATUS</small><strong><span class="check">✓</span> UPSTREAM 25.12.6</strong></div><div><small>RECOVERY IP</small><strong><code>192.168.68.1</code></strong></div></section>
-    <section class="section shell" id="journey"><div class="section-heading"><div><div class="eyebrow">01 / YOUR PATH</div><h2>你现在在哪一步？</h2></div><p>选择当前状态，直接进入对应的操作路径。</p></div><div class="path-grid">
+    <section class="section shell" id="journey"><div class="section-heading"><div><div class="eyebrow">01 / YOUR PATH</div><h2 data-i18n="journeyTitle">你现在在哪一步？</h2></div><p data-i18n="journeyLead">选择当前状态，直接进入对应的操作路径。</p></div><div class="path-grid">
       <button class="path-card glass-panel" data-doc="../docs/00-preparation.md" type="button"><span class="path-number">01</span><span class="path-icon">◎</span><span class="path-title">还没开始刷机</span><span class="path-copy">准备固件、接线、校验来源，建立一条可回退的安全路径。</span><span class="path-link">从准备开始 <b>↗</b></span></button>
       <button class="path-card glass-panel path-card-active" data-doc="../docs/03-first-boot.md" type="button"><span class="path-number">02</span><span class="path-icon">◈</span><span class="path-title">已经进入 OpenWrt</span><span class="path-copy">从首次启动开始配置 LAN、WiFi、DNS、eMMC 与常用服务。</span><span class="path-link">开始系统配置 <b>↗</b></span></button>
       <button class="path-card glass-panel" data-doc="../docs/07-troubleshooting.md" type="button"><span class="path-number">03</span><span class="path-icon">⌁</span><span class="path-title">设备需要恢复</span><span class="path-copy">从网络状态、Recovery 入口与 failsafe 路径开始排查。</span><span class="path-link">进入故障排查 <b>↗</b></span></button>
     </div></section>
-    <section class="section shell" id="firmware"><div class="section-heading"><div><div class="eyebrow">02 / FIRMWARE DESK</div><h2>固件，先确认再写入。</h2></div><p>官方基线优先，个人构建和历史文件单独标注。所有镜像都必须核对设备型号与 SHA256。</p></div><div class="firmware-layout"><div class="firmware-list">
+    <section class="section shell" id="firmware"><div class="section-heading"><div><div class="eyebrow">02 / FIRMWARE DESK</div><h2 data-i18n="firmwareTitle">固件，先确认再写入。</h2></div><p data-i18n="firmwareLead">官方基线优先，个人构建和历史文件单独标注。所有镜像都必须核对设备型号与 SHA256。</p></div><div class="firmware-layout"><div class="firmware-list">
       <article class="firmware-card glass-panel recommended"><div class="card-topline"><span class="tag tag-cyan">OFFICIAL BASELINE</span><span class="file-size">7.75 MiB · 官方托管</span></div><h3>25.12.6 <span>官方标准布局</span></h3><p>官方 sysupgrade 固件 · ramips / mt7621 / jdcloud_re-cp-02</p><div class="hash-row"><code>30995d91…f9076c0</code><button class="copy-button" data-copy="30995d91889e8db1e79e7ca0dc0297c94d1877c2d832b1db341072989f9076c0" type="button" aria-label="复制 SHA256">⧉</button></div><div class="card-actions"><a href="https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin" target="_blank" rel="noopener">下载官方固件 <span>↗</span></a><span class="verified">SHA256 已核对</span></div></article>
       <article class="firmware-card glass-panel"><div class="card-topline"><span class="tag tag-muted">HISTORICAL BUILD</span><span class="file-size">10.19 MB · 仓库入口</span></div><h3>25.12.0-rc2 <span>无 TF 卡驱动</span></h3><p>历史 sysupgrade 固件 · 不作为当前官方升级基线</p><div class="hash-row"><code>3624d4ae…c294f3d</code><button class="copy-button" data-copy="3624d4aeed6777e733ae472734dd9b84e6714e91f5fdc64723c2dc069c294f3d" type="button" aria-label="复制 SHA256">⧉</button></div><div class="card-actions"><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noopener">查看 GitHub 仓库 <span>↗</span></a><span class="verified">需自行核对来源</span></div></article>
       <article class="firmware-card glass-panel personal"><div class="card-topline"><span class="tag tag-amber">PERSONAL BUILD</span><span class="file-size">10.19 MB · 仓库入口</span></div><h3>25.12.1 <span>自用版本</span></h3><p>作者个人验证配置 · 使用前请确认兼容性</p><div class="hash-row"><code>7aae9a00…e50529</code><button class="copy-button" data-copy="7aae9a00623cc4276f8c7e7e2dbfccb519a8514a4fa4880cc94bd66eb5e50529" type="button" aria-label="复制 SHA256">⧉</button></div><div class="card-actions"><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noopener">查看 GitHub 仓库 <span>↗</span></a><span class="verified">需自行核对来源</span></div></article>
@@ -63,21 +63,22 @@
         <output id="firmware-result" role="status" aria-live="polite">准备读取清单…</output>
       </form>
     </section>
-    <section class="section shell" id="docs"><div class="section-heading"><div><div class="eyebrow">03 / FIELD NOTES</div><h2>从准备到持续升级，逐章展开。</h2></div><button class="button button-quiet small-button" id="all-docs" type="button">浏览全部文档 <span>↗</span></button></div><div class="doc-grid" id="doc-grid"></div></section>
+    <section class="section shell" id="docs"><div class="section-heading"><div><div class="eyebrow">03 / FIELD NOTES</div><h2 data-i18n="docsTitle">从准备到持续升级，逐章展开。</h2></div><button class="button button-quiet small-button" id="all-docs" type="button" data-i18n="browseDocs">浏览全部文档 <span>↗</span></button></div><div class="doc-grid" id="doc-grid"></div></section>
     <section class="safety-banner shell glass-panel"><div class="safety-mark">!</div><div><div class="eyebrow">NON-REVERSIBLE OPERATIONS</div><h2>写入 U-Boot、重建 eMMC 分区之前，先停一下。</h2><p>任何设备识别、Factory 备份或 SHA256 校验不一致，都应该停止继续。漂亮的界面不会替代正确的判断。</p></div><button class="button button-danger" data-doc="../docs/02-flashing.md" type="button">查看高风险步骤 <span>↗</span></button></section>
   </main>
   <footer class="footer shell"><span>RE-CP-02 OPENWRT LAB</span><span>DOCUMENTATION / RECOVERY / HOME GATEWAY</span><a href="https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02" target="_blank" rel="noreferrer">GitHub ↗</a></footer>
   <nav class="mobile-nav" aria-label="移动端快速导航">
-    <a href="#top" data-section-link="top" aria-current="page"><span>⌂</span><small>总览</small></a>
-    <a href="#journey" data-section-link="journey"><span>◎</span><small>流程</small></a>
-    <a href="#firmware" data-section-link="firmware"><span>◈</span><small>固件</small></a>
-    <a href="#docs" data-section-link="docs"><span>▤</span><small>文档</small></a>
+    <a href="#top" data-section-link="top" aria-current="page"><span>⌂</span><small data-i18n="overview">总览</small></a>
+    <a href="#journey" data-section-link="journey"><span>◎</span><small data-i18n="journey">流程</small></a>
+    <a href="#firmware" data-section-link="firmware"><span>◈</span><small data-i18n="firmware">固件</small></a>
+    <a href="#docs" data-section-link="docs"><span>▤</span><small data-i18n="docs">文档</small></a>
   </nav>
   <div class="modal" id="doc-modal" aria-hidden="true"><div class="modal-backdrop" data-close-modal></div><section class="modal-panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><div class="eyebrow">FIELD NOTE</div><h2 id="modal-title" tabindex="-1">文档</h2></div><button class="icon-button" data-close-modal type="button" aria-label="关闭">×</button></div><div class="modal-body" id="modal-body"><div class="loading">正在读取文档…</div></div></section></div>
   <div class="toast" id="toast" role="status"></div>
   <div class="search-modal" id="search-modal" aria-hidden="true"><div class="modal-backdrop" data-close-search></div><section class="search-panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="search-title"><div class="search-head"><label class="sr-only" id="search-title" for="search-input">搜索文档</label><input id="search-input" type="search" placeholder="搜索章节、命令、IP 地址…" autocomplete="off"><kbd>ESC</kbd></div><div class="search-results" id="search-results"><p class="search-hint">输入关键词开始搜索</p></div></section></div>
   <script src="markdown.js"></script>
   <script src="guide-tools.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
   <script src="firmware-check.js"></script>
 </body>

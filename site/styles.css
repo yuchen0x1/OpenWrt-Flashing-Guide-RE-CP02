@@ -320,3 +320,4 @@ body.rail-pinned .rail-status { opacity:1; }
 .search-result small { display:block; color:var(--muted); margin-bottom:4px; }
 .doc-content .search-target { outline:2px solid var(--cyan); outline-offset:6px; scroll-margin-top:20px; }
 @media(max-width:760px) { .integrity-panel { grid-template-columns:1fr; gap:16px; padding:20px; } .integrity-intro h2 { font-size:21px; } }
+.locale-toggle { min-height: 34px; border: 1px solid var(--line, rgba(255,255,255,.16)); border-radius: 9px; padding: 0 8px; color: inherit; background: rgba(8,16,22,.78); font: inherit; }

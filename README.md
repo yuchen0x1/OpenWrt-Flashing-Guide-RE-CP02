@@ -16,19 +16,17 @@
 
 ## 最新更新
 
-### v1.5.1 · 2026-11-17
+<!-- github-release:start -->
 
-- 本地阅读站点支持自动跟随浏览器/系统语言，也可手动切换中文或 English 并保存。
-- 导航、标题、搜索和文档弹窗会即时更新；设备、固件、命令与刷机文档内容保持原样。
+**[v1.5.1](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.1)** · 2026-11-17
 
-### v1.5.0 · 2026-11-13
+本版本继续完善本地阅读站点壳层：支持自动语言选择、手动切换和本地持久化，并修正平板视口下的导航拥挤问题。设备信息、固件说明、命令与技术文档内容保持原文。
 
-- 浏览器本地校验下载文件 SHA256，显示改名及不匹配结果，文件不上传。
-- 搜索结果直达命中章节，网络失败可重试，阅读位置保留更可靠。
-- 插件中心准确显示服务执行结果，防止重复操作。
-- 统一站点与 Glass 主题视觉，完善桌面侧栏、移动导航和三态主题。
+[全部发行记录](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases)
 
-[完整更新记录（16 个版本，含升级与兼容说明）](docs/releases/release-notes.md) · [下载 v1.5.0](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.0)
+<!-- github-release:end -->
+
+[完整更新日志](docs/releases/release-notes.md)
 
 ## 目录
 

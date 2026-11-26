@@ -80,6 +80,7 @@ async function dynamicCheck() {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'recp02-ota-wrapper-'));
   const out = path.join(temp, 'out');
   const lock = path.join(temp, 'lock');
+  const tracePath = path.join(temp, 'trace');
   const fake = path.join(temp, 'ota-check-fake.sh');
   fs.writeFileSync(fake, '#!/bin/sh\nprintf "started\\n" >> "$OTA_TEST_TRACE"\nsleep "${OTA_TEST_DELAY:-1}"\nprintf "fake ota-check: %s\\n" "$*"\nexit "${OTA_TEST_RC:-0}"\n', { mode: 0o755 });
   const env = {
@@ -87,14 +88,14 @@ async function dynamicCheck() {
     OTA_UI_OUT: posixPath(out),
     OTA_UI_LOCK: posixPath(lock),
     OTA_CHECK_BIN: posixPath(fake),
-    OTA_TEST_TRACE: posixPath(path.join(temp, 'trace'))
+    OTA_TEST_TRACE: posixPath(tracePath)
   };
-  const waitUntil = async predicate => {
+  const waitUntil = async (predicate, diagnostics = () => ({})) => {
     const deadline = Date.now() + 30000;
     while (!predicate()) {
       if (Date.now() >= deadline) {
         throw new Error('等待后台任务完成超时; lock=' + fs.existsSync(lock)
-          + '; output=' + JSON.stringify(outputText().slice(-1000)));
+          + '; details=' + JSON.stringify(diagnostics()));
       }
       await new Promise(resolve => setTimeout(resolve, 30));
     }
@@ -128,17 +129,31 @@ async function dynamicCheck() {
       const result = await runWrapper(args);
       check('unsafe or malformed RPC arguments rejected: ' + args.join(' '), result.code === 2 && outputText() === before && !fs.existsSync(lock), result.stdout + result.stderr);
     }
-    fs.writeFileSync(path.join(temp, 'trace'), '');
+    fs.writeFileSync(tracePath, '');
     const simultaneous = await Promise.all(Array.from({ length: 8 }, () => runWrapper()));
     await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock));
     const starts = fs.readFileSync(path.join(temp, 'trace'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
     check('eight simultaneous requests start exactly one checker', starts.length === 1 && simultaneous.filter(item => item.stdout.includes('OTA_BUSY')).length === 7, JSON.stringify({ starts, simultaneous }));
-    fs.writeFileSync(path.join(temp, 'trace'), '');
+    fs.writeFileSync(tracePath, '');
     fs.mkdirSync(lock);
     fs.writeFileSync(path.join(lock, 'pid'), '99999999\n');
     const staleRace = await Promise.all(Array.from({ length: 8 }, () => runWrapper()));
-    await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock));
-    const recoveredStarts = fs.readFileSync(path.join(temp, 'trace'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
+    await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock), () => {
+      let pid = null;
+      try { pid = fs.readFileSync(path.join(lock, 'pid'), 'utf8').trim(); } catch {}
+      let entries = null;
+      try { entries = fs.readdirSync(lock); } catch {}
+      return {
+        lockExists: fs.existsSync(lock),
+        lockEntries: entries,
+        lockPid: pid,
+        procPidExists: pid ? fs.existsSync(path.join('/proc', pid)) : false,
+        trace: fs.existsSync(tracePath) ? fs.readFileSync(tracePath, 'utf8') : null,
+        output: outputText().slice(-1000),
+        requests: staleRace.map(item => ({ code: item.code, stdout: item.stdout, stderr: item.stderr }))
+      };
+    });
+    const recoveredStarts = fs.readFileSync(tracePath, 'utf8').trim().split(/\r?\n/).filter(Boolean);
     check('simultaneous stale-lock recovery starts exactly one checker', recoveredStarts.length === 1 && staleRace.filter(item => item.stdout.includes('OTA_BUSY')).length === 7, JSON.stringify({ recoveredStarts, staleRace }));
     fs.mkdirSync(lock);
     const emptyLock = await runWrapper();

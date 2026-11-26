@@ -6,7 +6,7 @@
 
 各版本是否具有已发布资产，以 [GitHub Releases](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases) 为准；仅有日志或标签的条目保留为项目历史记录。
 
-## 1.5.4 - 2026-11-27
+## 1.5.5 - 2026-11-27
 
 ### 📢 版本概述
 
@@ -15,7 +15,7 @@
 ### 🔧 改进与优化
 
 - **官方下载链接检查**：先解析 URL 并精确匹配主机名，再校验协议和完整下载路径，避免 URL 其他位置出现相同域名文本导致误识别。
-- **CI 并发回归**：扩展 OTA 包装器测试等待窗口；超时时包含锁状态和结果文件尾部，方便定位 Linux 调度延迟。
+- **CI 并发回归**：扩展 OTA 包装器测试等待窗口；超时时包含锁目录、PID、启动轨迹、请求结果和输出尾部，方便定位 Linux 调度问题。
 
 ### 🔒 安全与兼容性
 
@@ -25,8 +25,8 @@
 
 | 文件名 | 平台 / 架构 | 说明 |
 |---|---|---|
-| `OpenWrt-Flashing-Guide-RE-CP02-v1.5.4.tar.gz` | 跨平台项目资料；路由器脚本面向 RE-CP-02 | 源码、文档及静态站点快照，不含固件镜像 |
-| `ota-manifest-v1.5.4.json` | 跨平台 JSON | 固件 OTA 清单与发布提交审计快照 |
+| `OpenWrt-Flashing-Guide-RE-CP02-v1.5.5.tar.gz` | 跨平台项目资料；路由器脚本面向 RE-CP-02 | 源码、文档及静态站点快照，不含固件镜像 |
+| `ota-manifest-v1.5.5.json` | 跨平台 JSON | 固件 OTA 清单与发布提交审计快照 |
 | `SHA256SUMS.txt` | 跨平台 | 同目录发布资产的 SHA256 清单 |
 
 - 首次使用：解压源码快照，按 README 启动本地 HTTP 服务；LuCI 组件按各目录部署说明安装。
@@ -49,7 +49,7 @@
 
 **问题反馈：** https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/issues
 
-**版本下载：** https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.4
+**版本下载：** https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.5
 
 ## 1.5.2 - 2026-11-26
 

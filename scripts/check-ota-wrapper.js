@@ -29,6 +29,9 @@ check('wrapper allows isolated lock path in tests', /OTA_UI_LOCK:-/.test(wrapper
 check('wrapper allows an injected ota-check command', /OTA_CHECK_BIN=/.test(wrapper));
 check('lock state is stored below a directory', /\[ -f "\$LOCK\/pid" \]/.test(wrapper));
 check('stale lock detection verifies process liveness', /kill -0 "\$_pid"/.test(wrapper));
+check('stale lock recovery replaces PID without removing the lock directory',
+  /Keep the lock directory in place while replacing a stale owner[\s\S]*_reclaim_pid="\$LOCK\/pid\.reclaim\.\$\$"[\s\S]*mv -f "\$_reclaim_pid" "\$LOCK\/pid"[\s\S]*return 0/.test(wrapper)
+  && !/rm -f "\$LOCK\/pid"[\s\S]*rmdir "\$LOCK" 2>\/dev\/null/.test(wrapper));
 check('lock acquisition uses atomic mkdir', /mkdir "\$LOCK"/.test(wrapper));
 check('busy requests return OTA_BUSY', /echo "OTA_BUSY"/.test(wrapper));
 check('background task writes its exit marker', /__OTA_DONE_%s__/.test(wrapper) && /"\$_rc"/.test(wrapper));

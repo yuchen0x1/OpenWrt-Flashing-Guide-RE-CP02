@@ -73,9 +73,21 @@ acquire_lock() {
       echo "OTA_BUSY"
       return 1
     fi
-    rm -f "$LOCK/pid"
-    rmdir "$LOCK/reclaim" 2>/dev/null
-    rmdir "$LOCK" 2>/dev/null || { echo "OTA_BUSY"; return 1; }
+    # Keep the lock directory in place while replacing a stale owner. Removing
+    # and recreating it opens a gap where every contender can report busy and
+    # leave an empty lock behind.
+    _reclaim_pid="$LOCK/pid.reclaim.$$"
+    if ! printf '%s\n' "$$" > "$_reclaim_pid" || ! mv -f "$_reclaim_pid" "$LOCK/pid"; then
+      rm -f "$_reclaim_pid"
+      rmdir "$LOCK/reclaim" 2>/dev/null
+      echo "无法更新后台任务锁" >&2
+      return 2
+    fi
+    rmdir "$LOCK/reclaim" 2>/dev/null || {
+      echo "无法释放后台任务恢复锁" >&2
+      return 2
+    }
+    return 0
   fi
 
   # mkdir is atomic on the router filesystem; unlike a file existence check,

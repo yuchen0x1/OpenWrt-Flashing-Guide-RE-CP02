@@ -5,6 +5,28 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { extractReleaseNotes } = require('./build-release-notes');
+const { parseOfficialDownloadUrl } = require('./firmware-url');
+
+const officialBase = 'https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/';
+const officialFile = 'openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin';
+assert.deepEqual(parseOfficialDownloadUrl(officialBase + officialFile), { version: '25.12.6', kind: 'squashfs-sysupgrade' });
+assert.equal(parseOfficialDownloadUrl(officialBase + officialFile.replace('squashfs-sysupgrade', 'initramfs-kernel')).kind, 'initramfs-kernel');
+for (const url of [
+  officialBase.replace('https:', 'http:') + officialFile,
+  officialBase.replace('downloads.openwrt.org', 'downloads.openwrt.org.evil.example') + officialFile,
+  officialBase.replace('downloads.openwrt.org', 'downloads.openwrt.org@evil.example') + officialFile,
+  officialBase.replace('downloads.openwrt.org', 'user@downloads.openwrt.org') + officialFile,
+  officialBase.replace('downloads.openwrt.org', 'downloads.openwrt.org:444') + officialFile,
+  'https://evil.example/path/' + officialBase + officialFile,
+  'https://evil.example/?download=' + officialBase + officialFile,
+  officialBase + officialFile + '?version=25.12.6',
+  officialBase + officialFile + '#version=25.12.6',
+  officialBase.replace('25.12.6', '25.12.5') + officialFile,
+  officialBase + officialFile.replace('jdcloud_re-cp-02', 'another-device'),
+  officialBase + officialFile.replace('squashfs-sysupgrade', 'factory'),
+  officialBase.replace('mt7621', 'mt7620') + officialFile,
+  officialBase + officialFile + '/extra'
+]) assert.throws(() => parseOfficialDownloadUrl(url), /Official firmware URL/);
 
 const history = [
   '# History', '',
@@ -56,4 +78,4 @@ try {
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
-console.log('PASS release template, fenced code, metadata versions and requested-tag checks');
+console.log('PASS trusted firmware URLs, release template, fenced code, metadata versions and requested-tag checks');

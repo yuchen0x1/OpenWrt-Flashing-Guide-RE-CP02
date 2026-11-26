@@ -53,9 +53,9 @@ function findBash() {
   }) || null;
 }
 
-function run(command, args, env) {
+function run(command, args, env, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { env, cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', chunk => { stdout += chunk; });
@@ -97,9 +97,13 @@ async function dynamicCheck() {
     }
   };
   const outputText = () => fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : '';
+  // Paths remain environment data; bash receives only constant command text.
+  const runWrapper = (args = [], overrides = {}, scriptPath = wrapperPath) => run(bash,
+    ['--noprofile', '--norc', '-c', 'exec sh "$OTA_TEST_WRAPPER" "$@"', 'ota-wrapper-test', ...args],
+    { ...env, ...overrides, OTA_TEST_WRAPPER: posixPath(scriptPath) }, temp);
   try {
-    const first = await run(bash, [posixPath(wrapperPath), '--source', 'github', '--version', '24.10.6'], env);
-    const second = await run(bash, [posixPath(wrapperPath), '--download'], env);
+    const first = await runWrapper(['--source', 'github', '--version', '24.10.6']);
+    const second = await runWrapper(['--download']);
     check('concurrent second request is rejected', second.stdout.includes('OTA_BUSY'), second.stdout || second.stderr);
     await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock));
     const output = outputText();
@@ -107,7 +111,7 @@ async function dynamicCheck() {
     check('first request output remains intact', output.includes('fake ota-check'), output);
     check('allowed source and version reach the checker', output.includes('--source github --version 24.10.6'), output);
     for (const code of [1, 2, 3]) {
-      const result = await run(bash, [posixPath(wrapperPath), '--download'], { ...env, OTA_TEST_RC: String(code), OTA_TEST_DELAY: '0' });
+      const result = await runWrapper(['--download'], { OTA_TEST_RC: String(code), OTA_TEST_DELAY: '0' });
       await waitUntil(() => outputText().includes(`__OTA_DONE_${code}__`) && !fs.existsSync(lock));
       check(`checker exit ${code} is preserved in completion marker`, result.code === 0 && outputText().includes(`__OTA_DONE_${code}__`), outputText());
     }
@@ -118,24 +122,42 @@ async function dynamicCheck() {
       ['--source', 'github', '--source', 'gitee']
     ];
     for (const args of invalid) {
-      const result = await run(bash, [posixPath(wrapperPath), ...args], env);
+      const result = await runWrapper(args);
       check('unsafe or malformed RPC arguments rejected: ' + args.join(' '), result.code === 2 && outputText() === before && !fs.existsSync(lock), result.stdout + result.stderr);
     }
     fs.writeFileSync(path.join(temp, 'trace'), '');
-    const simultaneous = await Promise.all(Array.from({ length: 8 }, () => run(bash, [posixPath(wrapperPath)], env)));
+    const simultaneous = await Promise.all(Array.from({ length: 8 }, () => runWrapper()));
     await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock));
     const starts = fs.readFileSync(path.join(temp, 'trace'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
     check('eight simultaneous requests start exactly one checker', starts.length === 1 && simultaneous.filter(item => item.stdout.includes('OTA_BUSY')).length === 7, JSON.stringify({ starts, simultaneous }));
     fs.writeFileSync(path.join(temp, 'trace'), '');
     fs.mkdirSync(lock);
     fs.writeFileSync(path.join(lock, 'pid'), '99999999\n');
-    const staleRace = await Promise.all(Array.from({ length: 8 }, () => run(bash, [posixPath(wrapperPath)], env)));
+    const staleRace = await Promise.all(Array.from({ length: 8 }, () => runWrapper()));
     await waitUntil(() => /__OTA_DONE_0__/.test(outputText()) && !fs.existsSync(lock));
     const recoveredStarts = fs.readFileSync(path.join(temp, 'trace'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
     check('simultaneous stale-lock recovery starts exactly one checker', recoveredStarts.length === 1 && staleRace.filter(item => item.stdout.includes('OTA_BUSY')).length === 7, JSON.stringify({ recoveredStarts, staleRace }));
     fs.mkdirSync(lock);
-    const emptyLock = await run(bash, [posixPath(wrapperPath)], env);
+    const emptyLock = await runWrapper();
     check('a newly created lock without a published PID is kept busy', emptyLock.stdout.includes('OTA_BUSY') && fs.existsSync(lock));
+
+    const special = path.join(temp, "path with spaces'$(touch OTA_PATH_INJECTION)");
+    fs.mkdirSync(special);
+    const specialWrapper = path.join(special, 'ota-check-ui');
+    const specialFake = path.join(special, 'ota-check-fake.sh');
+    const specialOut = path.join(special, 'out');
+    const specialLock = path.join(special, 'lock');
+    fs.copyFileSync(wrapperPath, specialWrapper);
+    fs.copyFileSync(fake, specialFake);
+    const specialResult = await runWrapper(['--source', 'gitee'], {
+      OTA_UI_OUT: posixPath(specialOut), OTA_UI_LOCK: posixPath(specialLock),
+      OTA_CHECK_BIN: posixPath(specialFake), OTA_TEST_TRACE: posixPath(path.join(special, 'trace')),
+      OTA_TEST_DELAY: '0'
+    }, specialWrapper);
+    await waitUntil(() => fs.existsSync(specialOut) && /__OTA_DONE_0__/.test(fs.readFileSync(specialOut, 'utf8')) && !fs.existsSync(specialLock));
+    check('script and temporary paths with spaces, quotes and dollar substitution stay literal',
+      specialResult.code === 0 && fs.readFileSync(specialOut, 'utf8').includes('--source gitee') &&
+      !fs.existsSync(path.join(temp, 'OTA_PATH_INJECTION')), specialResult.stderr);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

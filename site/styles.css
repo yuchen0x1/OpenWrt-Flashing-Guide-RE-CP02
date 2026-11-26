@@ -249,6 +249,7 @@ body.rail-pinned .rail-status { opacity:1; }
 .light-mode:before { opacity:.06; }
 .light-mode .vantage-rail { background:rgba(237,241,236,.94); border-right-color:rgba(23,36,28,.13); }
 .light-mode .topbar { background:rgba(237,241,236,.88); }
+.light-mode .hash-row code { color:var(--text); }
 .light-mode .rail-nav a[aria-current="page"] { background:rgba(91,118,13,.1); border-color:rgba(91,118,13,.24); }
 .light-mode .hero h1 span { background:none; color:#526c0b; -webkit-text-fill-color:#526c0b; }
 .light-mode .hero h1 em { background:linear-gradient(100deg,#526c0b,#314a30 52%,#0e7280); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; }

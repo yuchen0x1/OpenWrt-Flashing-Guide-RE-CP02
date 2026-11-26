@@ -128,12 +128,16 @@ function checkRouterScript() {
   }
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'recp02-ota-shell-'));
   const posix = value => value.replace(/\\/g, '/');
-  const bin = path.join(temp, 'bin');
-  const scratch = path.join(temp, 'scratch');
+  const special = path.join(temp, "path with spaces'$(touch OTA_PATH_INJECTION)");
+  fs.mkdirSync(special);
+  const bin = path.join(special, 'bin');
+  const scratch = path.join(special, 'scratch');
   fs.mkdirSync(bin);
   fs.mkdirSync(scratch);
-  const fixturePath = path.join(temp, 'manifest.json');
-  const payloadPath = path.join(temp, 'payload.bin');
+  const scriptPath = path.join(special, 'ota-check.sh');
+  fs.copyFileSync(path.join(root, 'scripts', 'ota-check.sh'), scriptPath);
+  const fixturePath = path.join(special, 'manifest.json');
+  const payloadPath = path.join(special, 'payload.bin');
   const payload = Buffer.from('actual OTA shell fixture\n');
   const imageName = 'fixture-24.10.6-squashfs-sysupgrade.bin';
   const fixture = {
@@ -146,14 +150,16 @@ function checkRouterScript() {
   fs.writeFileSync(path.join(bin, 'curl'), '#!/bin/sh\nout=""\nwhile [ "$#" -gt 0 ]; do\n  case "$1" in -o) out="$2"; shift ;; https://*) url="$1" ;; esac\n  shift\ndone\n[ -n "$out" ] || exit 2\ncase "$url" in */manifest.json) cp "$OTA_TEST_MANIFEST" "$out" ;; *) cp "$OTA_TEST_PAYLOAD" "$out" ;; esac\n', { mode: 0o755 });
   fs.writeFileSync(path.join(bin, 'logger'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   const env = {
-    ...process.env, OTA_TEST_BIN: posix(bin),
+    ...process.env, OTA_TEST_BIN: posix(bin), OTA_TEST_SCRIPT: posix(scriptPath),
     OTA_TMP: posix(scratch), OTA_ALLOW_FAKE: '1', OTA_FAKE_MODEL: 'JDCloud RE-CP-02',
     OTA_MANIFEST_URL: 'https://fixture.invalid/manifest.json', OTA_TEST_MANIFEST: posix(fixturePath),
     OTA_TEST_PAYLOAD: posix(payloadPath), OTA_FETCH_RETRIES: '1'
   };
+  // Script paths are environment values, never part of shell command text or
+  // the argument segment that bash parses as its command.
   const execute = (version, args = []) => spawnSync(bash,
-    ['-c', 'export PATH="$(cygpath -u "$OTA_TEST_BIN" 2>/dev/null || printf "%s" "$OTA_TEST_BIN"):$PATH"; exec sh "$@"', 'ota-shell-test', posix(path.join(root, 'scripts', 'ota-check.sh')), ...args],
-    { env: { ...env, OTA_FAKE_VERSION: version }, encoding: 'utf8', timeout: 15000 });
+    ['--noprofile', '--norc', '-c', 'export PATH="$(cygpath -u "$OTA_TEST_BIN" 2>/dev/null || printf "%s" "$OTA_TEST_BIN"):$PATH"; exec sh "$OTA_TEST_SCRIPT" "$@"', 'ota-shell-test', ...args],
+    { env: { ...env, OTA_FAKE_VERSION: version }, cwd: temp, encoding: 'utf8', timeout: 15000 });
   try {
     let result = execute('23.05.4');
     if (result.status !== 1) console.error('OTA shell diagnostic: ' + JSON.stringify({ status: result.status, error: result.error && result.error.message, stdout: result.stdout, stderr: result.stderr }));
@@ -177,6 +183,7 @@ function checkRouterScript() {
     result = execute('24.10.6');
     assert(result.status === 1 && result.stderr.includes('24.10.6 -> 24.10.7') && JSON.parse(fs.readFileSync(path.join(scratch, 'ota-manifest.json'), 'utf8')).latest === '24.10.7', '实际 shell：相同字节长度的新清单仍被重新获取并提示更新');
     assert(!fs.readdirSync(scratch).some(name => name === 'ota-check.lock' || name.startsWith('ota-check-data.')), '实际 shell：成功和失败退出均清理私有临时目录与锁');
+    assert(!fs.existsSync(path.join(temp, 'OTA_PATH_INJECTION')), '实际 shell：脚本和临时路径中的空格、单引号与 $() 不执行命令');
 
     const emmc = fs.readFileSync(path.join(root, 'scripts', 'emmc-one-key-setup.sh'), 'utf8');
     const migration = emmc.slice(emmc.indexOf('# ---- 3. 迁移 overlay 数据 ----'), emmc.indexOf('log "---- 完成 ----"'))

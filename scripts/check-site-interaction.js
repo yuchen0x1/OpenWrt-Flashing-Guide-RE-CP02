@@ -42,6 +42,9 @@ const BROWSER_CANDIDATES = [
 ].filter(Boolean);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+function singleLine(value) {
+  return JSON.stringify(String(value)).replace(/[\x7f-\x9f\u2028\u2029]/g, char => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0'));
+}
 
 function findBrowser() {
   for (const candidate of BROWSER_CANDIDATES) {
@@ -70,8 +73,10 @@ async function main() {
   const results = [];
   function check(name, ok, detail) {
     results.push({ name, ok });
-    console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok || !detail ? '' : ' :: ' + detail));
+    console.log((ok ? 'PASS ' : 'FAIL ') + singleLine(name) + (ok || !detail ? '' : ' :: ' + singleLine(detail)));
   }
+  const logProbe = singleLine('detail\nPASS forged\r\x1b[31m\x85\u2028\u2029');
+  check('日志动态内容转义换行和控制字符', !/[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(logProbe) && logProbe.includes('\\nPASS forged'));
 
   const outputDir = path.resolve(__dirname, '../outputs/site-check');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -365,6 +370,42 @@ async function main() {
       }
     }
     await evaluate(`SiteI18n.apply('zh-CN')`);
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    for (const theme of ['light', 'dark']) {
+      await evaluate(`applyThemeMode('${theme}'); document.querySelector('.firmware-card.recommended').scrollIntoView({behavior:'instant',block:'center'})`);
+      await sleep(1200);
+      r = await evaluate(`(() => {
+        function rgba(value) {
+          const parts = value.match(/[\\d.]+/g).map(Number);
+          return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+        }
+        function composite(front, back) {
+          return front.slice(0, 3).map((value, index) => value * front[3] + back[index] * (1 - front[3]));
+        }
+        function luminance(color) {
+          const linear = color.map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+          return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+        }
+        const ratios = [...document.querySelectorAll('.hash-row code')].map(code => {
+          const backgrounds = [];
+          for (let element = code; element; element = element.parentElement) backgrounds.unshift(rgba(getComputedStyle(element).backgroundColor));
+          const background = backgrounds.reduce((back, front) => composite(front, back), [255, 255, 255]);
+          const foreground = composite(rgba(getComputedStyle(code).color), background);
+          const a = luminance(foreground), b = luminance(background);
+          return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        });
+        let opacity = 1;
+        for (let element = document.querySelector('.hash-row code'); element; element = element.parentElement) opacity *= Number(getComputedStyle(element).opacity);
+        const rect = document.querySelector('.hash-row').getBoundingClientRect();
+        return {count: ratios.length, minimum: Math.min(...ratios), opacity, clip: {x: rect.left + scrollX, y: rect.top + scrollY, width: rect.width, height: rect.height, scale: 2}};
+      })()`);
+      check(theme + ' SHA256 文本对比度至少 4.5:1' + (r.value ? '（' + r.value.minimum.toFixed(2) + ':1）' : ''), !!(r.value && r.value.count === 3 && r.value.minimum >= 4.5 && r.value.opacity >= 0.999), JSON.stringify(r.value));
+      if (r.value?.clip) {
+        const shot = await send('Page.captureScreenshot', { format: 'png', clip: r.value.clip });
+        if (shot.result?.data) fs.writeFileSync(path.join(outputDir, 'hash-row-' + theme + '.png'), Buffer.from(shot.result.data, 'base64'));
+      }
+    }
+    await evaluate(`applyThemeMode('light')`);
     for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['tablet', 820, 1180], ['dark', 1440, 1000]]) {
       if (name === 'dark') await evaluate(`applyThemeMode('dark')`);
       await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: name === 'mobile' });
@@ -400,6 +441,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('FATAL ' + (err && err.message ? err.message : err));
+  console.error('FATAL ' + singleLine(err && err.message ? err.message : err));
   process.exit(2);
 });

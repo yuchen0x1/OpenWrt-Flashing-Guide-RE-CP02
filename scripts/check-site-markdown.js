@@ -40,6 +40,15 @@ function hasNot(name, haystack, needle) {
   check(name, !String(haystack).includes(needle), 'unexpected ' + JSON.stringify(needle));
 }
 
+const allowedTags = new Set(['a', 'blockquote', 'button', 'code', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'hr', 'li', 'ol', 'p', 'pre', 'strong', 'table', 'tbody', 'td', 'th', 'thead', 'tr', 'ul']);
+function unexpectedMarkup(html) {
+  for (const match of html.matchAll(/<[^<>]*>|[<>]/g)) {
+    const tag = /^<\/?([a-z][a-z0-9]*)(?:\s[^<>]*)?>$/i.exec(match[0]);
+    if (!tag || !allowedTags.has(tag[1].toLowerCase())) return match[0];
+  }
+  return null;
+}
+
 /* ---------- 1. 行内解析顺序（原 bug：代码段被当语法） ---------- */
 
 eq('行内代码里的 ** 不被渲染为粗体',
@@ -227,6 +236,10 @@ eq('标题锚点退化为纯文本（站内弹窗没有对应元素）',
 
 /* ---------- 6. 安全：不得产生可注入的原始标签 ---------- */
 
+eq('输出检查直接识别 script 标签而不先删除内容', unexpectedMarkup('<script>alert(1)</script>'), '<script>');
+eq('输出检查识别嵌套的破损标签', unexpectedMarkup('<scr<script>ipt>'), '<');
+eq('输出检查识别裸尖括号', unexpectedMarkup('<p>a > b</p>'), '>');
+
 {
   const evil = '<img src=x onerror=alert(1)>';
   const { html } = md.renderMarkdown(evil);
@@ -258,12 +271,8 @@ for (const name of docFiles) {
     continue;
   }
   const problems = [];
-  /* 输出里不应出现「未匹配的尖括号」——除非是合法标签的一部分 */
-  const stripped = result.html.replace(/<[^>]+>/g, '');
-  if (/[<>]/.test(stripped)) {
-    const m = stripped.match(/.{0,40}[<>].{0,40}/);
-    problems.push('未转义的尖括号: ' + JSON.stringify(m && m[0]));
-  }
+  const unexpected = unexpectedMarkup(result.html);
+  if (unexpected) problems.push('不允许的标签或未转义尖括号: ' + JSON.stringify(unexpected));
   /* 每条 ## 都应进目录 */
   const h2Count = (source.match(/^## /gm) || []).length;
   if (result.toc.length !== h2Count) {

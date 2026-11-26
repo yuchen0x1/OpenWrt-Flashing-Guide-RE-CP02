@@ -23,6 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { parseOfficialDownloadUrl } = require('./firmware-url');
 
 const root = path.resolve(__dirname, '..');
 const verbose = process.argv.includes('--verbose');
@@ -145,7 +146,15 @@ assertHash('site/index.html', read('site/index.html'), shaUp, 'sysupgrade');
 /* ---------- 4. 站点下载链接必须指向基线版本 ---------- */
 
 const siteHtml = read('site/index.html');
-const downloadLinks = uniq([...siteHtml.matchAll(/https:\/\/downloads\.openwrt\.org\/releases\/([^/]+)\/targets\/ramips\/mt7621\//g)].map(m => m[1]));
+const downloadLinks = [];
+const siteLinks = [...siteHtml.matchAll(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map(match => match[1] || match[2] || '');
+for (const href of siteLinks.filter(value => value.includes('downloads.openwrt.org'))) {
+  try {
+    downloadLinks.push(parseOfficialDownloadUrl(href).version);
+  } catch (error) {
+    fail('site/index.html 官方下载链接非法: ' + href + ' (' + error.message + ')');
+  }
+}
 if (!downloadLinks.length) {
   fail('site/index.html 没有官方下载链接');
 } else {

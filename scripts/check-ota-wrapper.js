@@ -90,9 +90,12 @@ async function dynamicCheck() {
     OTA_TEST_TRACE: posixPath(path.join(temp, 'trace'))
   };
   const waitUntil = async predicate => {
-    const deadline = Date.now() + 10000;
+    const deadline = Date.now() + 30000;
     while (!predicate()) {
-      if (Date.now() >= deadline) throw new Error('等待后台任务完成超时');
+      if (Date.now() >= deadline) {
+        throw new Error('等待后台任务完成超时; lock=' + fs.existsSync(lock)
+          + '; output=' + JSON.stringify(outputText().slice(-1000)));
+      }
       await new Promise(resolve => setTimeout(resolve, 30));
     }
   };

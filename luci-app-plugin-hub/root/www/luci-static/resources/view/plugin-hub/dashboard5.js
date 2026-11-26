@@ -14,7 +14,7 @@
  * 重读状态徽标。操作需要 ACL 允许对 /etc/init.d/ 执行 file exec。
  * 安全提醒：独立端口的网页界面（ttyd / filebrowser / Transmission 等）默认只应
  * 在局域网访问，切勿在防火墙把这些端口映射到 WAN。
- * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图为 dashboard4.js，旧视图保留供旧部署回退）。
+ * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图为 dashboard5.js，历史版本可从 Git 标签回退）。
  */
 
 var callServiceList = rpc.declare({
@@ -42,7 +42,7 @@ function hubUrl(item) {
 	if (item.internal) {
 		return L.url(item.href);
 	}
-	return window.location.protocol + '//' + window.location.hostname + ':' + item.port + item.path;
+	return (item.protocol || 'http:') + '//' + window.location.hostname + ':' + item.port + item.path;
 }
 
 /* 徽标状态：procd 服务在跑 = 运行中；有 init 脚本但没在跑 = 已停止；连 init 脚本都没有 = 未安装 */
@@ -152,6 +152,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			L.resolveDefault(fs.list('/etc/init.d'), null).then(function(list) {
+				if (!Array.isArray(list)) return null;
 				var map = {};
 				(list || []).forEach(function(e) {
 					if (e && e.name) {

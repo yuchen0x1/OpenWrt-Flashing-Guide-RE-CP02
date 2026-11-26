@@ -120,6 +120,7 @@ if [ "$WIFI" = "1" ]; then
   if [ -n "$RADIOS" ]; then
     for radio in $RADIOS; do
       log "WiFi radio: $radio（disabled=$(uci -q get wireless.$radio.disabled 2>/dev/null || echo 0)）"
+      run uci set "wireless.$radio.disabled=0" || die "无法启用 WiFi radio: $radio"
     done
     DEFS=$(uci -q show wireless 2>/dev/null | grep '=wifi-iface' | cut -d. -f2 | cut -d= -f1)
     for def in $DEFS; do

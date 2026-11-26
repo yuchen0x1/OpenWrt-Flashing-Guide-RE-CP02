@@ -221,4 +221,35 @@ for (const key of TARGET_KEYS) {
 }
 assert(backendDoc.includes('url_test_url') && backendDoc.includes('case "$target" in'), 'backend patch falls back to the global test URL for unknown targets');
 
+// 执行真实列表渲染至 innerHTML 写入，覆盖订阅分组名的 HTML 注入和原型键。
+const renderStart = source.indexOf('function get_remarks_name(o)');
+const renderEnd = source.indexOf('\n\tloadNodeList();', renderStart);
+assert(renderStart >= 0 && renderEnd > renderStart, 'node list renderer can be isolated for regression checks');
+function renderGroups(groups, storageDenied = false) {
+  const stop = new Error('render captured');
+  let html = '';
+  let sampled = false;
+  const renderer = {
+    XHR: { get: (_, __, callback) => callback({ status: 200 }, groups.map((group, index) => ({ '.name': 'node' + index, group, remarks: 'safe' }))) },
+    escapeHtml: text => String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+    auto_detection_time: 'icmp', show_node_info: '0', otaUrlTargets: [],
+    document: { getElementById: id => id === 'node_list' ? { set innerHTML(value) { html = value; if (!storageDenied) throw stop; } } : { cloneNode: () => ({ innerHTML: id === 'nodes-table-template' ? '<table>{{node-tr}}</table>' : '<tr>{{remarks}}</tr>' }) } },
+    cbi_t_add() {}, cbi_t_switch() {}, get_node_order() { return []; }, initAllSortable() {}, get_now_use_node() {}, pingAllNodes() { sampled = true; }
+  };
+  renderer.escapeAttrJs = text => renderer.escapeHtml(String(text).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n'));
+  if (storageDenied) Object.defineProperty(renderer, 'localStorage', { get() { throw new Error('storage denied'); } });
+  vm.createContext(renderer);
+  vm.runInContext(source.slice(renderStart, renderEnd).replace(/<%[=-]?[\s\S]*?%>/g, ''), renderer);
+  try { renderer.loadNodeList(); }
+  catch (error) { if (error !== stop) throw error; }
+  return storageDenied ? sampled : html;
+}
+const hostileGroup = '\"><img src=x onerror=alert(1)>';
+const renderedHostileGroup = renderGroups([hostileGroup]);
+assert(!renderedHostileGroup.includes('<img'), 'subscription group names cannot inject HTML into tab containers');
+assert(renderedHostileGroup.includes('&lt;img'), 'hostile group text is preserved as escaped text');
+const prototypeGroups = renderGroups(['__proto__', 'constructor', 'toString']);
+assert(prototypeGroups.includes('container.passwall.nodes.__proto__') && prototypeGroups.includes('container.passwall.nodes.constructor'), 'prototype property names remain valid independent node groups');
+assert(renderGroups(['default'], true), 'blocked browser storage does not interrupt node state loading and sampling');
+
 console.log('PASS all passwall node-list enhancement behavior checks');

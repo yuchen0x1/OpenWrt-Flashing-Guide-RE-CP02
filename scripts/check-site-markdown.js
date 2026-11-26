@@ -99,6 +99,34 @@ has('相对 docs 链接同样识别',
   md.inlineMarkdown('[准备](../docs/00-preparation.md)'),
   'data-doc-link="../docs/00-preparation.md"');
 
+has('同目录文档链接可在阅读弹窗内打开',
+  md.inlineMarkdown('[刷机流程](02-flashing.md)'),
+  'data-doc-link="../docs/02-flashing.md"');
+
+has('带 ./ 的同目录文档链接同样识别',
+  md.inlineMarkdown('[准备](./00-preparation.md)'),
+  'data-doc-link="../docs/00-preparation.md"');
+
+has('显式链接查询参数只转义一次',
+  md.inlineMarkdown('[查询](https://example.com/?a=1&b=2)'),
+  'href="https://example.com/?a=1&amp;b=2"');
+
+has('自动链接支持查询参数',
+  md.inlineMarkdown('<https://example.com/?a=1&b=2>'),
+  'href="https://example.com/?a=1&amp;b=2"');
+
+eq('URL 内的星号不被强调语法改写',
+  md.inlineMarkdown('https://example.com/*abc*/download'),
+  '<a class="text-link" href="https://example.com/*abc*/download" target="_blank" rel="noreferrer">https://example.com/*abc*/download</a>');
+
+has('链接外的强调仍然生效',
+  md.inlineMarkdown('**[重点](https://example.com/)**'),
+  '<strong><a class="text-link"');
+
+eq('链接标签里的 URL 不生成嵌套链接',
+  (md.inlineMarkdown('[查看 https://example.com/a](https://example.com/b)').match(/<a /g) || []).length,
+  1);
+
 has('外部链接带 rel=noreferrer',
   md.inlineMarkdown('[OpenWrt](https://openwrt.org)'),
   'rel="noreferrer"');
@@ -253,6 +281,12 @@ check(`${docFiles.length} 篇文档全部可渲染`, renderedCount === docFiles.
   const { html } = md.renderMarkdown(source);
   const auto = (html.match(/<a class="text-link" href="https:\/\/openwrt\.org/g) || []).length;
   check('docs/09 的 <https://openwrt.org/...> 自动链接已渲染为可点链接', auto >= 3, 'found ' + auto);
+}
+
+{
+  const source = fs.readFileSync(path.join(root, 'docs/09-official-upgrade.md'), 'utf8');
+  has('实际升级文档的刷机流程交叉链接可用', md.renderMarkdown(source).html,
+    'data-doc-link="../docs/02-flashing.md"');
 }
 
 console.log('\nSUMMARY pass=' + passes + ' fail=' + failures.length);

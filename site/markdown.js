@@ -26,6 +26,7 @@
   const FENCE = String.fromCharCode(96).repeat(3);
 
   function normalizeDocPath(path) {
+    if (/^(?:\.\/)?[\w-]+\.md$/i.test(path)) return DOC_PREFIX + path.replace(/^\.\//, '');
     return path.startsWith('docs/') ? '../' + path : path;
   }
 
@@ -40,36 +41,39 @@
    * 只处理「非代码」区段：链接 → 自动链接 → 粗体 → 斜体。
    * 输入必须是尚未转义的原始文本片段。
    */
-  function inlinePlainSegment(text) {
+  function inlineEmphasis(text) {
     let html = escapeHtml(text);
-
-    /* [label](href) */
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (whole, label, href) => {
-      const target = href.trim();
-      /* 标题锚点（#xxx）在站内弹窗里没有对应元素，退化为纯文本，避免死链 */
-      if (target.startsWith('#')) return label;
-      if (isDocPath(target)) {
-        return '<a class="text-link" href="#" data-doc-link="' + escapeHtml(normalizeDocPath(target)) + '">' + label + '</a>';
-      }
-      if (/^(https?:\/\/|mailto:)/i.test(target)) {
-        return '<a class="text-link" href="' + escapeHtml(target) + '" target="_blank" rel="noreferrer">' + label + '</a>';
-      }
-      /* 未支持的协议（javascript: data: 等）：整段退化为纯文本 */
-      return label;
-    });
-
-    /* <https://example.com> 自动链接（docs/09 参考资料用的就是这种写法） */
-    html = html.replace(/&lt;(https?:\/\/[^\s&]+)&gt;/g, (whole, url) =>
-      '<a class="text-link" href="' + url + '" target="_blank" rel="noreferrer">' + url.replace(/^https?:\/\//, '') + '</a>');
-
-    /* 裸 URL（README 的参考列表是纯文本 URL），避免把已生成的 href 再包一层 */
-    html = html.replace(/(^|[\s（(])(https?:\/\/[^\s<）)]+)/g, (whole, lead, url) =>
-      lead + '<a class="text-link" href="' + url + '" target="_blank" rel="noreferrer">' + url + '</a>');
-
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/(^|[^*])\*([^*\s][^*]*?)\*([^*]|$)/g, '$1<em>$2</em>$3');
-
     return html;
+  }
+
+  function inlinePlainSegment(text) {
+    const links = [];
+    let marker = '\u0000';
+    while (text.includes(marker)) marker += '\u0000';
+    /* Keep generated anchors out of subsequent emphasis and URL parsing. */
+    const source = text.replace(/\[([^\]]+)\]\(([^)]+)\)|<(https?:\/\/[^\s<>]+)>|(^|[\s（(])(https?:\/\/[^\s<>"'）)]+)/gi,
+      (whole, label, href, auto, lead, bare) => {
+        let html;
+        if (href !== undefined) {
+          const target = href.trim();
+          const title = inlineEmphasis(label);
+          if (isDocPath(target)) {
+            html = '<a class="text-link" href="#" data-doc-link="' + escapeHtml(normalizeDocPath(target)) + '">' + title + '</a>';
+          } else if (/^(https?:\/\/|mailto:)/i.test(target)) {
+            html = '<a class="text-link" href="' + escapeHtml(target) + '" target="_blank" rel="noreferrer">' + title + '</a>';
+          } else {
+            html = title;
+          }
+        } else {
+          const url = auto || bare;
+          html = escapeHtml(lead || '') + '<a class="text-link" href="' + escapeHtml(url) + '" target="_blank" rel="noreferrer">'
+            + escapeHtml(auto ? url.replace(/^https?:\/\//i, '') : url) + '</a>';
+        }
+        return marker + (links.push(html) - 1) + marker;
+      });
+    return inlineEmphasis(source).replace(new RegExp(marker + '(\\d+)' + marker, 'g'), (whole, index) => links[Number(index)]);
   }
 
   /**

@@ -19,6 +19,8 @@ permissions:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
     permissions:
       contents: read
 
@@ -85,6 +87,6 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "$RELEASE_TAG" \
+            --title "OpenWrt 刷机指南 $RELEASE_TAG" \
             --notes-file outputs/release-notes.md \
             --verify-tag

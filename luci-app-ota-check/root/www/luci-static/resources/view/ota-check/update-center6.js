@@ -16,7 +16,7 @@
  * 节点引用在点击时按 id 现场查找，避免主题动画换 DOM 后引用失效。
  * 网页只提供「检测」与「下载校验」；刷写动作保留在 SSH 的 ota-check --flash，
  * 需要人工输入 YES 确认——这是有意的安全边界。
- * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 update-center4.js 更名而来）。
+ * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 update-center5.js 更名而来）。
  */
 
 var OUT_FILE = '/tmp/ota-check-ui.out';
@@ -72,8 +72,7 @@ function pollResult(tries) {
 		var m = content.match(/__OTA_DONE_(\d+)__/);
 		if (m) {
 			finishResult(content.replace(/__OTA_DONE_\d+__\n?/g, ''), parseInt(m[1], 10));
-			refreshChangelog();
-			return;
+			return refreshChangelog();
 		}
 		setOut(content);
 		if (tries > 0)
@@ -95,6 +94,9 @@ function handleRun(ev, args, busyText) {
 	setBadge('…');
 
 	return fs.exec('/usr/bin/ota-check-ui', args || []).then(function(res) {
+		if (!res || res.code !== 0) {
+			throw new Error((res && (res.stderr || res.stdout)) || '后台任务未成功启动');
+		}
 		/* 包装器发现已有后台任务时输出 OTA_BUSY：输出文件归正在运行的任务所有，
 		   不清空不重置，直接转入轮询展示其实时进度 */
 		if (res && /OTA_BUSY/.test(res.stdout || '')) {
@@ -115,7 +117,14 @@ function runWithSource(ev, args, busyText) {
 	var sel = document.getElementById('ota-source');
 	var source = (sel && sel.value) || 'github';
 	var full = ['--source', source].concat(args || []);
-	handleRun(ev, full, busyText);
+	return handleRun(ev, full, busyText);
+}
+
+function manifestReleases(manifest) {
+	return manifest && Array.isArray(manifest.releases) ? manifest.releases.filter(function(release) {
+		return release && typeof release === 'object' && typeof release.version === 'string'
+			&& /^\d+\.\d+\.\d+$/.test(release.version);
+	}) : [];
 }
 
 /* 版本号降序比较（按 '.' 分段取数值，容忍非数字段） */
@@ -132,7 +141,7 @@ function renderChangelog(box, manifestJson) {
 	if (!box) return;
 	var m = null;
 	try { m = JSON.parse(manifestJson || ''); } catch (e) { m = null; }
-	var releases = (m && m.releases) || [];
+	var releases = manifestReleases(m);
 	if (!releases.length) {
 		box.innerHTML = '';
 		box.appendChild(E('p', { 'class': 'text-muted' },
@@ -147,7 +156,9 @@ function renderChangelog(box, manifestJson) {
 		var tags = [];
 		if (r.version === latest) tags.push(E('span', { 'class': 'label label-success' }, _('最新')));
 		if (r.recommended) tags.push(E('span', { 'class': 'label label-warning' }, _('推荐')));
-		var notes = (r.notes || []).map(function(n) { return E('li', {}, n); });
+		var notes = (Array.isArray(r.notes) ? r.notes : []).filter(function(n) {
+			return typeof n === 'string';
+		}).map(function(n) { return E('li', {}, n); });
 		items.push(E('li', {}, [
 			E('strong', {}, [r.version, ' '].concat(tags)),
 			r.added ? E('span', { 'style': 'opacity:.55;font-size:12px' }, '　收录于 ' + r.added) : '',
@@ -174,7 +185,7 @@ function renderVersionButtons(box, manifestJson) {
 	if (!box) return;
 	var m = null;
 	try { m = JSON.parse(manifestJson || ''); } catch (e) { m = null; }
-	var releases = (m && m.releases) || [];
+	var releases = manifestReleases(m);
 	box.innerHTML = '';
 	if (!releases.length) {
 		box.appendChild(E('span', { 'style': 'opacity:.55;font-size:85%' },

@@ -24,6 +24,7 @@
 # 下一次运行会自动接管并清理残留锁）
 
 set -u
+umask 077
 
 OTA_MANIFEST_URL="${OTA_MANIFEST_URL:-}"
 OTA_TMP="${OTA_TMP:-/tmp}"
@@ -78,22 +79,36 @@ die() { log "错误: $*"; exit 2; }
 
 # 运行锁：/tmp 是多写者共用目录，两个 ota-check 并发会互相覆写 manifest 与镜像。
 # 锁目录存 PID，并用 /proc/<pid>/cmdline 复核（进程死后或 PID 被复用时自动失效）。
+lock_active() {
+  _lp=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+  case "$_lp" in '' | *[!0-9]*) return 1 ;; esac
+  [ -d "/proc/$_lp" ] && grep -q ota-check "/proc/$_lp/cmdline" 2>/dev/null
+}
 acquire_lock() {
   LOCK_DIR="$OTA_TMP/ota-check.lock"
-  if [ -d "$LOCK_DIR" ]; then
-    _lp=$(cat "$LOCK_DIR/pid" 2>/dev/null)
-    case "$_lp" in
-      '' | *[!0-9]*) _lp="" ;;
-    esac
-    if [ -n "$_lp" ] && [ -d "/proc/$_lp" ] && grep -q ota-check "/proc/$_lp/cmdline" 2>/dev/null; then
-      die "另一个 ota-check 正在运行（PID $_lp），请等待其完成或删除 $LOCK_DIR"
+  if [ -e "$LOCK_DIR" ] || [ -L "$LOCK_DIR" ]; then
+    [ -d "$LOCK_DIR" ] && [ ! -L "$LOCK_DIR" ] || die "运行锁路径不安全: $LOCK_DIR"
+    if [ ! -s "$LOCK_DIR/pid" ] || lock_active; then
+      die "另一个 ota-check 正在运行或创建锁，请等待其完成（$LOCK_DIR）"
+    fi
+    mkdir "$LOCK_DIR/reclaim" 2>/dev/null || die "另一个 ota-check 正在接管残留锁"
+    if [ ! -s "$LOCK_DIR/pid" ] || lock_active; then
+      rmdir "$LOCK_DIR/reclaim" 2>/dev/null
+      die "另一个 ota-check 已持有运行锁"
     fi
     log "发现残留运行锁（原进程已退出），自动清理"
-    rm -rf "$LOCK_DIR"
+    rm -f "$LOCK_DIR/pid"
+    rmdir "$LOCK_DIR/reclaim" 2>/dev/null
+    rmdir "$LOCK_DIR" 2>/dev/null || die "无法接管残留运行锁"
   fi
   mkdir "$LOCK_DIR" 2>/dev/null || die "无法创建运行锁: $LOCK_DIR"
   echo $$ > "$LOCK_DIR/pid"
-  trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
+  WORK_DIR=$(mktemp -d "$OTA_TMP/ota-check-data.XXXXXX") || {
+    rm -rf "$LOCK_DIR"
+    die "无法创建私有下载目录"
+  }
+  trap 'rm -rf "$WORK_DIR" "$LOCK_DIR"' EXIT
+  trap 'exit 2' INT TERM
 }
 
 # 单次下载（不带重试）。如果目标文件已经有内容，优先请求 HTTP Range 续传；
@@ -175,19 +190,33 @@ get_model() {
   [ -r /tmp/sysinfo/model ] && cat /tmp/sysinfo/model || printf 'unknown'
 }
 
-# 比较 A 与 B，输出 -1 / 0 / 1（仅比较数字段，最多 4 段）
+# 比较固件版本，正式版高于同版本的 rc/beta，未知格式不猜测成旧版本。
 version_compare() {
-  _a="$1"; _b="$2"; _i=1
-  while [ "$_i" -le 4 ]; do
-    _pa=$(printf '%s' "$_a" | cut -d. -f"$_i")
-    _pb=$(printf '%s' "$_b" | cut -d. -f"$_i")
-    case "$_pa" in '' | *[!0-9]*) _pa=0 ;; esac
-    case "$_pb" in '' | *[!0-9]*) _pb=0 ;; esac
-    if [ "$_pa" -lt "$_pb" ]; then echo -1; return; fi
-    if [ "$_pa" -gt "$_pb" ]; then echo 1; return; fi
-    _i=$((_i + 1))
-  done
-  echo 0
+  awk -v left="$1" -v right="$2" 'BEGIN {
+    pattern="^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.-]+)?$"
+    if (left !~ pattern || right !~ pattern) exit 2
+    split(left, a, "-"); split(right, b, "-")
+    split(a[1], av, "."); split(b[1], bv, ".")
+    for (i=1; i<=3; i++) {
+      if (av[i]+0 < bv[i]+0) { print -1; exit }
+      if (av[i]+0 > bv[i]+0) { print 1; exit }
+    }
+    ap=substr(left, length(a[1])+2); bp=substr(right, length(b[1])+2)
+    if (ap == bp) { print 0; exit }
+    if (ap == "") { print 1; exit }
+    if (bp == "") { print -1; exit }
+    an=split(ap, av, "."); bn=split(bp, bv, ".")
+    for (i=1; i<=an || i<=bn; i++) {
+      if (i>an) { print -1; exit }
+      if (i>bn) { print 1; exit }
+      if (av[i] == bv[i]) continue
+      ai=av[i] ~ /^[0-9]+$/; bi=bv[i] ~ /^[0-9]+$/
+      if (ai && bi) { print (av[i]+0 < bv[i]+0 ? -1 : 1); exit }
+      if (ai != bi) { print (ai ? -1 : 1); exit }
+      print (av[i] < bv[i] ? -1 : 1); exit
+    }
+    print 0
+  }'
 }
 
 # 解析 manifest，输出 KEY=VALUE 纯数据行（调用方只做白名单字段读取，绝不 source/eval）
@@ -210,7 +239,7 @@ parse_manifest() {
     done
   elif command -v node >/dev/null 2>&1; then
     # mktemp 唯一文件名：固定路径写入在多用户/公共 /tmp 下有符号链接劫持风险
-    _parser=$(mktemp "$OTA_TMP/ota-parse.js.XXXXXX") || die "无法创建临时解析脚本"
+    _parser=$(mktemp "$WORK_DIR/ota-parse.js.XXXXXX") || die "无法创建临时解析脚本"
     cat > "$_parser" <<'EOF'
 const m = JSON.parse(require("fs").readFileSync(process.argv[2], "utf8"));
 const q = s => String(s == null ? "" : s).replace(/[\r\n]+/g, " ");
@@ -232,7 +261,7 @@ EOF
     rm -f "$_parser"
     return $_rc
   elif command -v python3 >/dev/null 2>&1; then
-    _parser=$(mktemp "$OTA_TMP/ota-parse.py.XXXXXX") || die "无法创建临时解析脚本"
+    _parser=$(mktemp "$WORK_DIR/ota-parse.py.XXXXXX") || die "无法创建临时解析脚本"
     cat > "$_parser" <<'EOF'
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -300,13 +329,15 @@ parsed_field() {
   sed -n "s/^$1=//p" "$PARSED" | head -n 1
 }
 
-MANIFEST_FILE="$OTA_TMP/ota-manifest.json"
 acquire_lock
+# The manifest is a fresh request on every check. Resuming yesterday's JSON
+# could preserve an old, same-sized manifest and hide updates indefinitely.
+MANIFEST_FILE="$WORK_DIR/ota-manifest.json"
 log "拉取更新源 ($OTA_SOURCE_NAME): $OTA_MANIFEST_URL"
 fetch_url "$OTA_MANIFEST_URL" "$MANIFEST_FILE" || die "拉取 manifest 失败（检查网络；HTTPS 报 TLS 错误时安装 libustream-mbedtls ca-bundle）"
 
-PARSED_RAW="$OTA_TMP/ota-parsed.env"
-PARSED="$OTA_TMP/ota-parsed.safe"
+PARSED_RAW="$WORK_DIR/ota-parsed.env"
+PARSED="$WORK_DIR/ota-parsed.safe"
 parse_manifest > "$PARSED_RAW" || die "解析 manifest 失败"
 load_parsed "$PARSED_RAW" > "$PARSED" || die "解析 manifest 失败"
 LATEST=$(parsed_field LATEST)
@@ -370,9 +401,16 @@ if [ -n "$TARGET_SIZE" ]; then
   esac
   awk -v size="$TARGET_SIZE" 'BEGIN { exit !(size > 0 && size <= 2147483647) }' \
     || die "manifest 中 $TARGET_VERSION 的镜像大小超出安全范围"
+  TARGET_SIZE=$(awk -v size="$TARGET_SIZE" 'BEGIN { printf "%.0f", size }')
 fi
 
-CMP=$(version_compare "$CURRENT_VERSION" "$TARGET_VERSION")
+# Preserve the polling contract used by already installed LuCI views. Publish
+# only a fully fetched and parsed manifest, replacing symlinks atomically.
+if [ -d "$OTA_TMP/ota-manifest.json" ] || ! mv -f "$MANIFEST_FILE" "$OTA_TMP/ota-manifest.json"; then
+  log "警告: 无法更新 LuCI 清单缓存，当前检测仍使用已验证数据"
+fi
+
+CMP=$(version_compare "$CURRENT_VERSION" "$TARGET_VERSION") || die "无法比较固件版本，请人工核对: $CURRENT_VERSION / $TARGET_VERSION"
 if [ "$CMP" -eq 0 ]; then
   log "已是最新: $CURRENT_VERSION == $TARGET_VERSION"
   exit 0
@@ -409,7 +447,7 @@ case "$IMG_NAME" in
   *-squashfs-sysupgrade.bin) : ;;
   *) log "警告: 镜像文件名不是 *-squashfs-sysupgrade.bin（$IMG_NAME），请确认更新源可信" ;;
 esac
-IMG_PATH="$OTA_TMP/$IMG_NAME"
+IMG_PATH="$WORK_DIR/$IMG_NAME"
 
 # 下载前检查 /tmp 剩余空间（/tmp 是内存盘，镜像约 10MB，写满会挤爆运行内存）
 if [ -n "$TARGET_SIZE" ]; then
@@ -439,6 +477,9 @@ ACTUAL_SHA=$(sha256sum "$IMG_PATH" | awk '{print $1}')
 log "SHA256 校验通过: $IMG_PATH"
 
 if [ "$MODE" = "download" ]; then
+  [ ! -d "$OTA_TMP/$IMG_NAME" ] || die "镜像目标路径被目录占用: $OTA_TMP/$IMG_NAME"
+  mv -f "$IMG_PATH" "$OTA_TMP/$IMG_NAME" || die "无法保存已校验镜像"
+  IMG_PATH="$OTA_TMP/$IMG_NAME"
   log "镜像已就绪（未刷写）: $IMG_PATH"
   exit 3
 fi

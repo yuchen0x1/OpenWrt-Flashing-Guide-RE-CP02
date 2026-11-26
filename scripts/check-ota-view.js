@@ -22,7 +22,8 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.resolve(__dirname, '..');
-const VIEW = process.env.OTA_VIEW_PATH || path.join(root, 'luci-app-ota-check/root/www/luci-static/resources/view/ota-check/update-center5.js');
+const menu = JSON.parse(fs.readFileSync(path.join(root, 'luci-app-ota-check/root/usr/share/luci/menu.d/luci-app-ota-check.json'), 'utf8'));
+const VIEW = process.env.OTA_VIEW_PATH || path.join(root, 'luci-app-ota-check/root/www/luci-static/resources/view', Object.values(menu)[0].action.path + '.js');
 
 function makeElement(tag) {
   return {
@@ -76,7 +77,7 @@ function createSandbox() {
     E,
     L: {
       url: p => '/cgi-bin/luci/' + p,
-      resolveDefault: (promise, fallback) => Promise.resolve(fallback),
+      resolveDefault: (promise, fallback) => Promise.resolve(promise).catch(() => fallback),
       bind: (fn, ctx) => fn.bind(ctx)
     },
     _: s => s,
@@ -93,13 +94,14 @@ function createSandbox() {
   };
 }
 
-function loadView() {
+function loadView(overrides, includeSandbox) {
   let source = fs.readFileSync(VIEW, 'utf8');
   source = source
     .replace(/^'use strict';/m, '')
     .replace(/^'require [^']+';$/gm, '')
     .replace('return view.extend({', '__view = view.extend({');
   const sandbox = createSandbox();
+  Object.assign(sandbox, overrides || {});
   sandbox.__view = null;
 
   const fn = vm.runInNewContext(
@@ -108,7 +110,7 @@ function loadView() {
     { filename: VIEW, timeout: 5000 }
   );
   if (!fn || typeof fn.render !== 'function') throw new Error('视图未导出 render()');
-  return fn;
+  return includeSandbox ? { view: fn, sandbox } : fn;
 }
 
 function collectById(node, id, acc = []) {
@@ -232,5 +234,51 @@ const manifest = JSON.stringify({
   check('更新日志按版本降序（新版本在前）', posNew >= 0 && posOld > posNew, 'posNew=' + posNew + ' posOld=' + posOld);
 }
 
-console.log('\nSUMMARY pass=' + passes.length + ' fail=' + failures.length);
-if (failures.length) process.exit(1);
+/* 6. JSON 语法合法但结构错误的缓存也不能破坏页面。 */
+for (const badManifest of [
+  { releases: 'broken' },
+  { releases: { length: 1 } },
+  { releases: [null, false, {}, { version: null }, { version: '--flash' }] },
+  { releases: [{ version: '25.12.6', notes: 'not an array' }] },
+  { releases: [{ version: '25.12.6', notes: [null, {}, '有效说明'] }] }
+]) {
+  let ok = true, detail = '';
+  try { renderWith(JSON.stringify(badManifest)); }
+  catch (error) { ok = false; detail = error.message; }
+  check('异常缓存结构安全降级 ' + JSON.stringify(badManifest), ok, detail);
+}
+
+/* 7. 只读角色不得执行更新；网页写角色只能调用受限包装器。 */
+{
+  const acl = JSON.parse(fs.readFileSync(path.join(root, 'luci-app-ota-check/root/usr/share/rpcd/acl.d/ota-check.json'), 'utf8'))['ota-check'];
+  check('OTA 只读 ACL 不授予 file exec', !acl.read.ubus.file.includes('exec') && !Object.values(acl.read.file).some(permissions => permissions.includes('exec')));
+  check('OTA 写 ACL 不允许绕过包装器直接执行刷写脚本', Object.keys(acl.write.file).length === 1 && Object.keys(acl.write.file)[0] === '/usr/bin/ota-check-ui');
+}
+
+async function checkRunFailures() {
+  for (const reply of [{ code: 2, stderr: 'invalid arguments' }, {}]) {
+    let reads = 0;
+    const badge = {}, output = {}, button = { disabled: false };
+    const { sandbox } = loadView({
+      document: { getElementById: id => id === 'ota-check-badge' ? badge : id === 'ota-check-out' ? output : null },
+      fs: { exec: async () => reply, read: async () => { reads++; return '__OTA_DONE_0__\n'; } }
+    }, true);
+    await sandbox.handleRun({ currentTarget: button }, [], 'running');
+    check('后台启动失败不轮询旧成功输出 ' + JSON.stringify(reply), reads === 0 && badge.textContent === '执行失败' && !button.disabled, 'reads=' + reads);
+  }
+  const badge = {}, output = {}, button = { disabled: false };
+  const { sandbox } = loadView({
+    document: { getElementById: id => id === 'ota-check-badge' ? badge : id === 'ota-check-out' ? output : null },
+    fs: { exec: async () => ({ code: 0, stdout: 'OTA_BUSY' }), read: async () => '__OTA_DONE_1__\n' }
+  }, true);
+  await sandbox.handleRun({ currentTarget: button }, [], 'running');
+  check('已有后台任务继续读取完成结果并恢复按钮', badge.textContent === '发现可用更新' && !button.disabled);
+}
+
+checkRunFailures().then(() => {
+  console.log('\nSUMMARY pass=' + passes.length + ' fail=' + failures.length);
+  if (failures.length) process.exitCode = 1;
+}).catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

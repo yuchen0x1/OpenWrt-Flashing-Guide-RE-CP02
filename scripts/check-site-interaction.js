@@ -80,41 +80,55 @@ async function main() {
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=' + PORT, '--user-data-dir=' + userDataDir, 'about:blank'
   ], { stdio: 'ignore' });
-
+  let childExited = false;
+  const exited = new Promise(resolve => {
+    const finish = () => { childExited = true; resolve(); };
+    child.once('exit', finish);
+    child.once('error', finish);
+  });
+  const pending = new Map();
+  let ws;
+  let timedOut = false;
+  function rejectPending(error) {
+    for (const request of pending.values()) request.reject(error);
+    pending.clear();
+  }
   const timer = setTimeout(() => {
-    console.log('FAIL 整体超时 ' + OVERALL_TIMEOUT + 'ms');
+    timedOut = true;
+    rejectPending(new Error('整体超时 ' + OVERALL_TIMEOUT + 'ms'));
+    try { ws?.close(); } catch {}
     try { child.kill(); } catch {}
-    process.exit(1);
   }, OVERALL_TIMEOUT);
 
-  let ws;
   try {
     let targets = null;
     for (let i = 0; i < 60; i++) {
+      if (timedOut) throw new Error('整体超时 ' + OVERALL_TIMEOUT + 'ms');
       try { targets = await getJson('/json/list'); if (targets && targets.length) break; } catch {}
       await sleep(250);
     }
     if (!targets || !targets.length) {
-      console.log('FAIL 无法连接浏览器调试端口 ' + PORT);
-      process.exit(2);
+      throw new Error('无法连接浏览器调试端口 ' + PORT);
     }
 
     const page = targets.find(t => t.type === 'page') || targets[0];
     ws = new WebSocket(page.webSocketDebuggerUrl);
     let nextId = 0;
-    const pending = new Map();
     const pageErrors = [];
 
     await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
     ws.onmessage = ev => {
       const msg = JSON.parse(ev.data);
       if (msg.method === 'Runtime.exceptionThrown') pageErrors.push(msg.params.exceptionDetails.text);
-      if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); }
+      if (msg.id && pending.has(msg.id)) { pending.get(msg.id).resolve(msg); pending.delete(msg.id); }
     };
+    ws.onclose = () => rejectPending(new Error('浏览器调试连接已关闭'));
 
-    const send = (method, params) => new Promise(resolve => {
+    const send = (method, params) => new Promise((resolve, reject) => {
+      if (timedOut) { reject(new Error('整体超时 ' + OVERALL_TIMEOUT + 'ms')); return; }
+      if (ws.readyState !== WebSocket.OPEN) { reject(new Error('浏览器调试连接不可用')); return; }
       const id = ++nextId;
-      pending.set(id, resolve);
+      pending.set(id, { resolve, reject });
       ws.send(JSON.stringify({ id, method, params: params || {} }));
     });
 
@@ -129,8 +143,31 @@ async function main() {
     await send('Page.navigate', { url: URL_BASE });
     await sleep(2500);
 
+    let r = await evaluate(`(() => {
+      const breadcrumb = document.getElementById('breadcrumb-current');
+      const setting = SiteI18n.readSetting();
+      setActiveSection('firmware');
+      SiteI18n.apply('en-US');
+      const retained = breadcrumb.textContent === 'Firmware';
+      setActiveSection('journey');
+      const translated = breadcrumb.textContent === 'Workflow';
+      SiteI18n.apply('zh-CN');
+      const changed = breadcrumb.textContent === '流程';
+      SiteI18n.apply(setting);
+      return {retained, translated, changed};
+    })()`);
+    check('切换语言保留当前位置，后续导航使用当前语言', !!(r.value && r.value.retained && r.value.translated && r.value.changed), JSON.stringify(r.value));
+
+    r = await evaluate(`(() => {
+      const container = document.createElement('div');
+      container.innerHTML = SiteMarkdown.inlineMarkdown('[查询](https://example.com/?a=1&b=2) https://example.com/*path*/download');
+      const links = container.querySelectorAll('a');
+      return {query: links[0]?.getAttribute('href'), path: links[1]?.getAttribute('href'), count: links.length};
+    })()`);
+    check('浏览器实际链接保留查询参数和路径内星号', !!(r.value && r.value.query === 'https://example.com/?a=1&b=2' && r.value.path === 'https://example.com/*path*/download' && r.value.count === 2), JSON.stringify(r.value));
+
     /* 1-2：文档弹窗焦点 */
-    let r = await evaluate(`
+    r = await evaluate(`
       (async () => {
         const card = document.querySelector('.doc-card');
         if (!card) return { error: 'no doc card' };
@@ -191,6 +228,17 @@ async function main() {
       })()
     `);
     check('Esc 关闭文档并解除滚动锁', !!(r.value && !r.value.open && !r.value.bodyLocked), JSON.stringify(r.value));
+
+    r = await evaluate(`(async () => {
+      await openDoc('../docs/09-official-upgrade.md');
+      const link = document.querySelector('#modal-body [data-doc-link="../docs/02-flashing.md"]');
+      if (link) link.click();
+      await new Promise(resolve => setTimeout(resolve, 400));
+      const opened = document.getElementById('modal-title').textContent === '刷机流程';
+      closeDoc();
+      return {link: !!link, opened};
+    })()`);
+    check('真实升级文档的同目录链接能打开刷机流程', !!(r.value && r.value.link && r.value.opened), JSON.stringify(r.value));
 
     /* 4：搜索清空竞态 —— 同一帧内清空，索引必然未返回 */
     r = await evaluate(`
@@ -298,23 +346,51 @@ async function main() {
     check('更换校验目标清除旧结论并恢复操作', !!(r.value && r.value.invalidated && r.value.enabled), JSON.stringify(r.value));
     await send('Page.navigate', { url: URL_BASE });
     await sleep(1000);
+    for (const locale of ['zh-CN', 'en-US']) {
+      await evaluate(`SiteI18n.apply('${locale}')`);
+      for (const width of [375, 768, 820, 980, 1024, 1120, 1180, 1200, 1280, 1440]) {
+        await send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 720 });
+        r = await evaluate(`(() => {
+          const header = document.querySelector('.topbar').getBoundingClientRect();
+          const controls = [...document.querySelectorAll('.topbar > *')].filter(element => getComputedStyle(element).display !== 'none');
+          const rects = controls.map(element => element.getBoundingClientRect());
+          const within = rects.every(rect => rect.left >= header.left - 1 && rect.right <= header.right + 1 && rect.bottom <= header.bottom + 1);
+          const separate = rects.every((rect, index) => index === 0 || rect.left >= rects[index - 1].right - 1);
+          const labels = [...document.querySelectorAll('.topnav a, .search-button span')].filter(element => element.getBoundingClientRect().height);
+          const readable = labels.every(element => element.getBoundingClientRect().height <= 24);
+          const update = document.querySelector('[data-project-update]');
+          return {within, separate, readable, updateFits: !update || update.scrollWidth <= update.clientWidth + 1};
+        })()`);
+        check(locale + ' ' + width + ' 顶部控件不重叠、不截断且更新区不溢出', !!(r.value && r.value.within && r.value.separate && r.value.readable && r.value.updateFits), JSON.stringify(r.value));
+      }
+    }
+    await evaluate(`SiteI18n.apply('zh-CN')`);
     for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['tablet', 820, 1180], ['dark', 1440, 1000]]) {
       if (name === 'dark') await evaluate(`applyThemeMode('dark')`);
       await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: name === 'mobile' });
       await evaluate(`document.querySelector('.integrity-panel').scrollIntoView({behavior:'instant',block:'center'})`);
       await sleep(900);
-      r = await evaluate(`({ fits: document.documentElement.scrollWidth <= window.innerWidth, form: document.getElementById('firmware-check').getBoundingClientRect().width > 0 })`);
+      r = await evaluate(`({ fits: document.documentElement.scrollWidth <= window.innerWidth, form: document.getElementById('firmware-check').getBoundingClientRect().width > 0, columns: getComputedStyle(document.querySelector('.integrity-panel')).gridTemplateColumns.split(' ').length })`);
       check(name + ' 视口没有横向溢出且校验表单可见', !!(r.value && r.value.fits && r.value.form), JSON.stringify(r.value));
+      if (width <= 900) check(name + ' 校验面板使用单列避免拥挤', !!(r.value && r.value.columns === 1), JSON.stringify(r.value));
       const shot = await send('Page.captureScreenshot', { format: 'png' });
       if (shot.result && shot.result.data) fs.writeFileSync(path.join(outputDir, name + '.png'), Buffer.from(shot.result.data, 'base64'));
     }
     check('浏览器没有未处理脚本异常', pageErrors.length === 0, pageErrors.join('; '));
-    ws.close();
   } finally {
     clearTimeout(timer);
-    try { child.kill(); } catch {}
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ id: 0, method: 'Browser.close' })); } catch {}
+      await Promise.race([exited, sleep(1500)]);
+    }
+    try { ws?.close(); } catch {}
+    if (child.exitCode === null) {
+      try { child.kill(); } catch {}
+    }
+    await Promise.race([exited, sleep(3000)]);
+    if (!childExited) throw new Error('无法确认本次测试浏览器已退出，保留隔离目录：' + userDataDir);
     if (path.dirname(userDataDir) === outputDir && path.basename(userDataDir) === 'browser-' + process.pid) {
-      try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {}
+      await fs.promises.rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
     }
   }
 

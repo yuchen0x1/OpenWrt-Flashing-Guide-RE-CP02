@@ -11,7 +11,7 @@
 | `root/usr/bin/ota-check-ui` | `/usr/bin/ota-check-ui`（需要 `chmod +x`） |
 | `root/usr/share/luci/menu.d/luci-app-ota-check.json` | `/usr/share/luci/menu.d/` |
 | `root/usr/share/rpcd/acl.d/ota-check.json` | `/usr/share/rpcd/acl.d/` |
-| `root/www/luci-static/resources/view/ota-check/update-center5.js` | `/www/luci-static/resources/view/ota-check/` |
+| `root/www/luci-static/resources/view/ota-check/update-center6.js` | `/www/luci-static/resources/view/ota-check/` |
 | `theme-patch/` | 可选：给 argon 主题加固件版本行，见 [theme-patch/README.md](theme-patch/README.md) |
 
 页面依赖两份可执行文件：`/usr/bin/ota-check`（检测脚本本体）和 `/usr/bin/ota-check-ui`（后台
@@ -36,7 +36,7 @@ uclient-fetch -q -O /usr/bin/ota-check-ui "http://<PC_IP>:18767/luci-app-ota-che
 mkdir -p /www/luci-static/resources/view/ota-check
 uclient-fetch -q -O /usr/share/luci/menu.d/luci-app-ota-check.json "http://<PC_IP>:18767/luci-app-ota-check/root/usr/share/luci/menu.d/luci-app-ota-check.json"
 uclient-fetch -q -O /usr/share/rpcd/acl.d/ota-check.json "http://<PC_IP>:18767/luci-app-ota-check/root/usr/share/rpcd/acl.d/ota-check.json"
-uclient-fetch -q -O /www/luci-static/resources/view/ota-check/update-center5.js "http://<PC_IP>:18767/luci-app-ota-check/root/www/luci-static/resources/view/ota-check/update-center5.js"
+uclient-fetch -q -O /www/luci-static/resources/view/ota-check/update-center6.js "http://<PC_IP>:18767/luci-app-ota-check/root/www/luci-static/resources/view/ota-check/update-center6.js"
 
 # 3. 两个脚本都必须可执行，否则 fs.exec 直接失败
 chmod +x /usr/bin/ota-check /usr/bin/ota-check-ui
@@ -48,6 +48,8 @@ rm -f /tmp/luci-indexcache*
 
 浏览器 Ctrl+F5，菜单「系统 → 更新中心」。
 
+升级时请同时替换包装器、菜单、ACL 和 `update-center6.js`，然后重启 rpcd 并重新登录 LuCI，使新会话加载收紧后的权限。只读角色只能查看设备信息与缓存结果；检测、下载需要写权限，网页角色不能直接执行 `ota-check --flash`。确认新视图正常后，可删除路由器上不再被菜单引用的 `update-center5.js`。
+
 > 走本仓库文件时 LF 已在 `.gitattributes` 里强制；如果是自己用 Windows 记事本改过再上传，
 > 先确认没有 CRLF——BusyBox ash 会在首行 `set -u` 报 `Illegal option` 直接退出。
 
@@ -55,7 +57,7 @@ rm -f /tmp/luci-indexcache*
 
 ```sh
 ls -l /usr/bin/ota-check /usr/bin/ota-check-ui     # 两行都要有 x 位
-ubus call luci getFeatures | grep -c ota-check     # 非 0 表示 ACL 已加载
+jsonfilter -i /usr/share/rpcd/acl.d/ota-check.json -e '@["ota-check"].description'  # 仅检查 ACL 文件可解析，授权仍需登录实测
 /usr/bin/ota-check --help | head -3                # 能打印用法说明脚本本身可用
 ```
 
@@ -73,7 +75,7 @@ ubus call luci getFeatures | grep -c ota-check     # 非 0 表示 ACL 已加载
 
 ## 发布约定
 
-- 改 `update-center5.js` 必须**换文件名并同步 `menu.d` 的 `view.path`**：uhttpd 对
+- 改 `update-center6.js` 必须**换文件名并同步 `menu.d` 的 `view.path`**：uhttpd 对
   `/luci-static/` 资源按 URL 启发式强缓存，不改文件名浏览器会继续跑旧代码。
 - 改 `ota-check-ui` 或 `ota-check.sh` 后，`.gitattributes` 保证 LF 检出，但仍需重新 `chmod +x`。
 

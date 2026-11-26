@@ -21,7 +21,7 @@
 
 对「已安装」（有 init 脚本）的服务卡片，底部提供「启动 / 停止 / 重启」三个按钮，
 通过 `fs.exec` 调用 `/etc/init.d/<name> <action>`，操作完成后自动重读状态徽标。
-需要 ACL 允许对 `/etc/init.d/` 下的脚本执行 `file exec`（见下方 ACL 配置）。
+需要 `plugin-hub` 的写权限。ACL 只允许卡片列出的服务执行 `start` / `stop` / `restart`，不再通配全部 init 脚本；只读角色仅能探测状态。
 
 ## 安全提醒（页面内常驻）
 
@@ -36,7 +36,7 @@
 | --- | --- |
 | `root/usr/share/luci/menu.d/luci-app-plugin-hub.json` | `/usr/share/luci/menu.d/` |
 | `root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json` | `/usr/share/rpcd/acl.d/` |
-| `root/www/luci-static/resources/view/plugin-hub/dashboard4.js` | `/www/luci-static/resources/view/plugin-hub/` |
+| `root/www/luci-static/resources/view/plugin-hub/dashboard5.js` | `/www/luci-static/resources/view/plugin-hub/` |
 
 ## 部署
 
@@ -47,20 +47,21 @@ python -m http.server 18767 --bind 0.0.0.0
 uclient-fetch -q -O /usr/share/luci/menu.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/luci/menu.d/luci-app-plugin-hub.json"
 uclient-fetch -q -O /usr/share/rpcd/acl.d/luci-app-plugin-hub.json "http://<PC_IP>:18767/luci-app-plugin-hub/root/usr/share/rpcd/acl.d/luci-app-plugin-hub.json"
 mkdir -p /www/luci-static/resources/view/plugin-hub
-uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard4.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard4.js"
+uclient-fetch -q -O /www/luci-static/resources/view/plugin-hub/dashboard5.js "http://<PC_IP>:18767/luci-app-plugin-hub/root/www/luci-static/resources/view/plugin-hub/dashboard5.js"
 rm -f /tmp/luci-indexcache*   # 刷新 LuCI 菜单缓存
 /etc/init.d/rpcd restart      # 加载新 ACL
 ```
 
-浏览器 Ctrl+F5。确认新视图正常后，部署过旧版（`dashboard.js` / `dashboard2.js` / `dashboard3.js`）的可删除旧文件：
+升级须同时更新菜单、ACL 与 `dashboard5.js`，重启 rpcd 后重新登录，使新会话加载新权限。浏览器 Ctrl+F5。确认新视图正常后，部署过旧版（`dashboard.js` / `dashboard2.js` / `dashboard3.js` / `dashboard4.js`）的可删除旧文件：
 
 ```sh
 rm -f /www/luci-static/resources/view/plugin-hub/dashboard.js \
       /www/luci-static/resources/view/plugin-hub/dashboard2.js \
-      /www/luci-static/resources/view/plugin-hub/dashboard3.js
+      /www/luci-static/resources/view/plugin-hub/dashboard3.js \
+      /www/luci-static/resources/view/plugin-hub/dashboard4.js
 ```
 
-增删按钮：编辑 `dashboard4.js` 顶部的 `HUB_ITEMS` 数组，`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。可选字段：
+增删按钮：编辑 `dashboard5.js` 顶部的 `HUB_ITEMS` 数组，并同步 ACL 中允许的服务与操作。`href` 为 LuCI 内部路径（`internal: true`），或 `port`/`path` 指向独立端口的网页界面（`internal: false`）。独立端口默认使用服务的 HTTP 协议，不受 LuCI 自身 HTTPS 影响；服务已配置 TLS 时可指定 `protocol: 'https:'`。可选字段：
 
 - `init: '服务名'`：状态徽标与快捷操作的探测对象（`/etc/init.d/` 下的脚本名）。文件管理器按手工安装方式可能没有 init 脚本（如用 rc.local 启动），此时会显示「未安装」且不出现快捷操作，按实际情况改掉或删掉 `init` 字段即可；
 - `lanOnly: true`：给独立端口卡片加「仅限局域网」徽标。
@@ -70,6 +71,6 @@ PassWall/插件升级不会覆盖本页面；卸载直接删除上面三个文�
 
 ## v1.5.0 可靠性修复（dashboard4）
 
-部署时同时更新 menu.d JSON 和 `dashboard4.js`。新的视图仅在 `fs.exec` 的退出码为 0 时报告已执行；命令失败、RPC 拒绝与状态刷新失败分别提示。同一服务的操作会合并门禁，避免两张关联卡片重复提交。运行徽标依据 procd 实例的 `running` 字段，不能以服务记录存在来判断存活。
+该版起仅在 `fs.exec` 的退出码为 0 时报告已执行；命令失败、RPC 拒绝与状态刷新失败分别提示。同一服务的操作会合并门禁，避免两张关联卡片重复提交。运行徽标依据 procd 实例的 `running` 字段，不能以服务记录存在来判断存活。
 
-当前目录仅保留菜单引用的 `dashboard4.js`。需要查看旧实现时，可从 Git 的 `v1.4.1` 标签获取 `dashboard3.js` 及对应的菜单文件。`node scripts/check-plugin-hub.js` 验证上述逻辑，但没有替代路由器上的 RPC、权限和实际服务验收。
+当前目录仅保留菜单引用的 `dashboard5.js`。需要查看旧实现时，可从 Git 历史标签获取对应视图和菜单文件。`node scripts/check-plugin-hub.js` 验证上述逻辑、权限范围、独立端口协议和探测失败降级，但没有替代路由器上的 RPC、权限和实际服务验收。

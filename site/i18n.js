@@ -35,6 +35,9 @@
   function readSetting() {
     try { const value = localStorage.getItem(storageKey); return value === 'zh-CN' || value === 'en-US' ? value : 'auto'; } catch { return 'auto'; }
   }
+  function translate(key) {
+    return messages[document.documentElement.lang]?.[key] ?? messages['zh-CN'][key] ?? key;
+  }
   function apply(setting) {
     const locale = resolve(setting);
     document.documentElement.lang = locale;
@@ -52,7 +55,7 @@
     if (select) select.value = setting;
     try { localStorage.setItem(storageKey, setting); } catch { /* private mode */ }
   }
-  window.SiteI18n = { apply, resolve, readSetting };
+  window.SiteI18n = { apply, resolve, readSetting, translate };
   const start = () => {
     const select = document.getElementById('locale-toggle');
     const setting = readSetting();

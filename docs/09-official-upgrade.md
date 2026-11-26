@@ -56,7 +56,13 @@ scp root@<ROUTER_IP>:/tmp/re-cp-02-backup.tar.gz ./re-cp-02-backup.tar.gz
 同时记录已安装软件，便于全新刷写后恢复：
 
 ```sh
+# 路由器上执行
 apk info -vv > /tmp/re-cp-02-packages.txt
+```
+
+然后在电脑上取回清单：
+
+```sh
 scp root@<ROUTER_IP>:/tmp/re-cp-02-packages.txt ./re-cp-02-packages.txt
 ```
 

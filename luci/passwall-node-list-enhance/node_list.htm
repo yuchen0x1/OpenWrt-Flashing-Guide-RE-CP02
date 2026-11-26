@@ -1157,9 +1157,10 @@ table td, .table .td {
 							return;
 						}
 
-						var group_nodes = {}
+						var group_nodes = Object.create(null)
 			for (let i = 0; i < node_list.length; i++) {
 				let _node = node_list[i]
+				if (!_node || typeof _node !== 'object' || Array.isArray(_node)) continue;
 				if (!_node.group || _node.group === "") {
 					_node.group = "default"
 				}
@@ -1245,7 +1246,7 @@ table td, .table .td {
 						'<a onclick="this.blur(); return cbi_t_switch(\'passwall.nodes\', \'' + escapeAttrJs(group) + '\')" href="<%=REQUEST_URI%>?tab.passwall.nodes=' + escapeHtml(group) + '">' + escapeHtml(group_name) + " | " + "<font style='color: red'>" + group_nodes[group].length + '</font></a>' +
 					'</li>'
 				tab_content_html +=
-					'<div class="cbi-tabcontainer" id="container.passwall.nodes.' + group + '" style="display: none;">' +
+					'<div class="cbi-tabcontainer" id="container.passwall.nodes.' + escapeHtml(group) + '" style="display: none;">' +
 					'' + table_html +
 					'</div>'
 			}
@@ -1264,13 +1265,14 @@ table td, .table .td {
 				cbi_t_switch("passwall.nodes", default_group)
 			}
 
-			origin_group_node_order = {};
+			origin_group_node_order = Object.create(null);
 			for (let group in group_nodes) {
 				origin_group_node_order[group] = get_node_order(group);
 			}
 
 			initAllSortable(group_nodes);
 
+									try {
 									if (localStorage && localStorage.length > 0) {
 										var expiredKeys = [];
 										for (let i = 0; i < localStorage.length; i++) {
@@ -1282,6 +1284,7 @@ table td, .table .td {
 											if (!value) otaCacheRemove(expiredKeys[i]);
 										}
 									}
+									} catch (err) {}
 
 			get_now_use_node();
 

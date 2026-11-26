@@ -242,7 +242,7 @@ if (window.matchMedia) {
 
 /* Vantage-style section context: keep the rail, bottom bar, and breadcrumb
    synchronized with the section currently visible in the reading guide. */
-const sectionNames = { top: '总览', journey: '流程', firmware: '固件', docs: '文档' };
+const sectionNames = { top: 'overview', journey: 'journey', firmware: 'firmware', docs: 'docs' };
 const sectionLinks = $$('[data-section-link]');
 const breadcrumbCurrent = $('#breadcrumb-current');
 function setActiveSection(id) {
@@ -251,7 +251,11 @@ function setActiveSection(id) {
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
-  if (breadcrumbCurrent) breadcrumbCurrent.textContent = sectionNames[id] || sectionNames.top;
+  if (breadcrumbCurrent) {
+    const key = sectionNames[id] || sectionNames.top;
+    breadcrumbCurrent.dataset.i18n = key;
+    breadcrumbCurrent.textContent = window.SiteI18n.translate(key);
+  }
 }
 const sectionTargets = Object.keys(sectionNames)
   .map(id => document.getElementById(id))

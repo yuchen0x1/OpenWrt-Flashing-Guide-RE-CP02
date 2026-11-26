@@ -16,7 +16,7 @@
  * 端口名按 DSA 命名（wan/lan1..lan4）自动发现，找不到 DSA 口时回退
  * eth0/eth1（旧 swconfig 布局），适配不同固件版本。
  * ACL：见 root/usr/share/rpcd/acl.d/luci-app-status-panel.json。
- * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 panel.js 更名而来）。
+ * 发布约定：视图 JS 改动须换文件名并同步 menu.d（本视图由 panel2.js 更名而来）。
  */
 
 var callDeviceStatus = rpc.declare({
@@ -143,6 +143,29 @@ function pickPorts(devices) {
 		}
 	});
 	return primary.length ? primary : fallback;
+}
+
+/* 以真实采样间隔计算速率；RPC 失败、设备变化或计数回退后重新建立基线。 */
+function trafficRatesFromPorts(previous, ports, timestamp) {
+	var result = { sample: null, rx: null, tx: null };
+	if (!ports.length) return result;
+	var rx = 0, tx = 0;
+	for (var i = 0; i < ports.length; i++) {
+		var stats = ports[i].info.statistics || {};
+		if (typeof stats.rx_bytes !== 'number' || typeof stats.tx_bytes !== 'number'
+			|| !isFinite(stats.rx_bytes) || !isFinite(stats.tx_bytes)
+			|| stats.rx_bytes < 0 || stats.tx_bytes < 0) return result;
+		rx += stats.rx_bytes;
+		tx += stats.tx_bytes;
+	}
+	var devices = ports.map(function(port) { return port.dev; }).sort().join('|');
+	result.sample = { rx: rx, tx: tx, timestamp: timestamp, devices: devices };
+	if (!previous || previous.devices !== devices || timestamp <= previous.timestamp
+		|| rx < previous.rx || tx < previous.tx) return result;
+	var seconds = (timestamp - previous.timestamp) / 1000;
+	result.rx = (rx - previous.rx) / seconds;
+	result.tx = (tx - previous.tx) / seconds;
+	return result;
 }
 
 /* 从 network.wireless status 里取无线接口名列表与已有 stations 数据 */
@@ -320,7 +343,7 @@ return view.extend({
 				portsEl.innerHTML = '';
 				if (!ports.length) {
 					portsEl.appendChild(E('div', { 'class': 'sp-meta' },
-						_('未发现 wan/lan1..4/eth0/eth1 物理口，设备命名可能不同（可编辑 panel2.js 的 PORT_HINTS 适配）')));
+						_('未发现 wan/lan1..4/eth0/eth1 物理口，设备命名可能不同（可编辑 panel3.js 的 PORT_HINTS 适配）')));
 				} else {
 					ports.forEach(function(p) {
 						var up = !!p.info.up && p.info.carrier !== false;
@@ -334,23 +357,12 @@ return view.extend({
 				}
 			}
 
-			var rxNow = 0, txNow = 0;
-			ports.forEach(function(p) {
-				var st = p.info.statistics || {};
-				rxNow += (st.rx_bytes || 0);
-				txNow += (st.tx_bytes || 0);
-			});
-			if (view._trafficPrev && portsEl) {
-				var rxEl = document.getElementById('sp-rx');
-				var txEl = document.getElementById('sp-tx');
-				if (rxEl) {
-					rxEl.textContent = fmtRate((rxNow - view._trafficPrev.rx) / POLL_INTERVAL);
-				}
-				if (txEl) {
-					txEl.textContent = fmtRate((txNow - view._trafficPrev.tx) / POLL_INTERVAL);
-				}
-			}
-			view._trafficPrev = { rx: rxNow, tx: txNow };
+			var traffic = trafficRatesFromPorts(view._trafficPrev, ports, Date.now());
+			var rxEl = document.getElementById('sp-rx');
+			var txEl = document.getElementById('sp-tx');
+			if (rxEl) rxEl.textContent = traffic.rx === null ? '--' : fmtRate(traffic.rx);
+			if (txEl) txEl.textContent = traffic.tx === null ? '--' : fmtRate(traffic.tx);
+			view._trafficPrev = traffic.sample;
 
 			/* 无线客户端数：优先使用 status.stations，缺失时查询 iwinfo ubus */
 			var wlanEl = document.getElementById('sp-wlan');

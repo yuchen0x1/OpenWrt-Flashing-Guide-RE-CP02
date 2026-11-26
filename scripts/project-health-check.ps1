@@ -69,13 +69,16 @@ $httpPaths = @(
     "site/",
     "site/styles.css",
     "site/app.js",
+    "site/i18n.js",
+    "site/project-update.js",
     "site/markdown.js",
     "site/guide-tools.js",
     "site/firmware-check.js",
     "site/favicon.svg",
     "site/assets/hero-router.jpg",
     "firmware/README.md",
-    "firmware/SHA256SUMS.txt"
+    "firmware/SHA256SUMS.txt",
+    "project-version.json"
 )
 
 $docs = @(Get-ChildItem -LiteralPath (Join-Path $root "docs") -Filter "*.md" -File | Sort-Object Name)
@@ -211,14 +214,19 @@ foreach ($file in $execCheckTargets) {
     $gitPath = $relative -replace '\\', '/'
     # GetUnixFileMode 仅 PS 7+；PS 5.1 读不了 unix 权限位，但可以回落到 git 索引里的
     # mode 位（100755/100644），否则这项检查在 Windows PowerShell 5.1 上永远是 SKIP。
-    if ($PSVersionTable.PSVersion.Major -ge 7) {
-        $mode = [System.IO.File]::GetUnixFileMode($file.FullName)
-        if (($mode -band [System.IO.UnixFileMode]::UserExecute) -ne 0) {
-            Pass "Exec perm $relative"
-        } else {
-            Fail "Exec perm $relative (缺少 +x；仓库脚本按约定需可执行)"
+    if ($PSVersionTable.PSVersion.Major -ge 7 -and [Environment]::OSVersion.Platform -eq [PlatformID]::Unix) {
+        try {
+            $mode = [System.IO.File]::GetUnixFileMode($file.FullName)
+            if (($mode -band [System.IO.UnixFileMode]::UserExecute) -ne 0) {
+                Pass "Exec perm $relative"
+            } else {
+                Fail "Exec perm $relative (缺少 +x；仓库脚本按约定需可执行)"
+            }
+            continue
+        } catch {
+            # Some PowerShell 7 runtimes expose no supported Unix mode API.
+            # The Git index remains the portable source of executable bits.
         }
-        continue
     }
     $gitLsEntry = $null
     if ($psGitAvailable) {

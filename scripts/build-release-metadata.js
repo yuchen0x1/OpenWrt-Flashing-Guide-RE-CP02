@@ -4,6 +4,7 @@
 /* 生成 GitHub Release 中的可审计 OTA 快照，不伪造固件下载地址或签名。 */
 const fs = require('fs');
 const path = require('path');
+const { validateManifest } = require('../site/project-update');
 
 const args = process.argv.slice(2);
 function value(name, fallback) {
@@ -16,8 +17,12 @@ const output = value('--output', path.join('release', `ota-manifest-${version}.j
 const root = path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'ota', 'manifest.json'), 'utf8'));
 const projectVersion = String(version).replace(/^v/, '');
-if (!/^\d+\.\d+\.\d+$/.test(projectVersion)) {
+if (!/^v\d+\.\d+\.\d+$/.test(version)) {
   throw new Error(`Release 标签必须是 vMAJOR.MINOR.PATCH，收到: ${version}`);
+}
+const projectManifest = validateManifest(JSON.parse(fs.readFileSync(path.join(root, 'project-version.json'), 'utf8')));
+if (projectManifest.version !== projectVersion) {
+  throw new Error(`项目更新清单版本 ${projectManifest.version} 与 Release 标签 ${version} 不一致`);
 }
 
 const sourceEpoch = Number(process.env.SOURCE_DATE_EPOCH);
@@ -29,6 +34,7 @@ const metadata = {
   project: 'OpenWrt-Flashing-Guide-RE-CP02',
   projectVersion,
   tag: version,
+  releaseUrl: projectManifest.releaseUrl,
   commit: process.env.GITHUB_SHA || null,
   generatedAt,
   updateModel: 'router-ota-manifest',

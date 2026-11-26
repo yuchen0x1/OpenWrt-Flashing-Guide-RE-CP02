@@ -15,6 +15,145 @@ function Add-Result {
     Add-Content -Path $ResultPath -Value $Text -Encoding UTF8
 }
 
+function Get-ProbeStatePath {
+    param($Adapter)
+    $id = ([guid]$Adapter.InterfaceGuid).ToString('D')
+    $root = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'OpenWrt-Flashing-Guide-RE-CP02\net-diagnose'
+    return Join-Path $root "$id.json"
+}
+
+function Save-ProbeState {
+    param([string]$Path, $State)
+    $directory = Split-Path -Parent $Path
+    [IO.Directory]::CreateDirectory($directory) | Out-Null
+    $temporary = "$Path.tmp"
+    try {
+        $State | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $temporary -Encoding UTF8
+        Move-Item -LiteralPath $temporary -Destination $Path -Force
+    } finally {
+        if (Test-Path -LiteralPath $temporary) {
+            Remove-Item -LiteralPath $temporary -Force
+        }
+    }
+}
+
+function Read-ProbeState {
+    param([string]$Path, $Adapter)
+    $state = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $allowed = @('192.168.68.2', '192.168.1.2', '192.168.8.2')
+    $id = ([guid]$Adapter.InterfaceGuid).ToString('D')
+    if ($state.Schema -ne 1 -or $state.InterfaceGuid -ne $id -or
+        $state.OriginalDhcp -notin @('Enabled', 'Disabled') -or
+        $null -eq $state.PSObject.Properties['OriginalAddresses'] -or
+        $null -eq $state.PSObject.Properties['AddedAddresses'] -or
+        $null -eq $state.PSObject.Properties['PendingAddress']) {
+        throw 'Invalid rollback record or network adapter mismatch; no addresses were removed.'
+    }
+    $tracked = @($state.AddedAddresses)
+    if ($state.PendingAddress) { $tracked += $state.PendingAddress }
+    foreach ($ip in $tracked) {
+        if ($ip -notin $allowed -or $ip -in @($state.OriginalAddresses)) {
+            throw 'Invalid probe address in rollback record; no addresses were removed.'
+        }
+    }
+    return $state
+}
+
+function Invoke-ProbeAddressChange {
+    param($Adapter, [switch]$Remove)
+    $desired = @('192.168.68.2', '192.168.1.2', '192.168.8.2')
+    $id = ([guid]$Adapter.InterfaceGuid).ToString('D')
+    if ($id -eq [guid]::Empty.ToString('D')) { throw 'Cannot identify this network adapter safely; no changes were made.' }
+    $path = Get-ProbeStatePath -Adapter $Adapter
+    $mutex = [Threading.Mutex]::new($false, "Local\OpenWrtGuideNetDiagnose-$id")
+    $locked = $false
+    try {
+        try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
+        if (-not $locked) { throw 'Another probe address change is already running for this adapter.' }
+
+        $current = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+            Where-Object { $_.InterfaceIndex -eq $Adapter.ifIndex })
+        if ($Remove) {
+            if (-not (Test-Path -LiteralPath $path)) {
+                Add-Result 'No rollback record for this adapter; existing IPv4 addresses and DHCP were left unchanged.'
+                return
+            }
+            $state = Read-ProbeState -Path $path -Adapter $Adapter
+            $tracked = @($state.AddedAddresses)
+            if ($state.PendingAddress) { $tracked += $state.PendingAddress }
+            # Validate the whole removal set before touching any current address.
+            foreach ($ip in $tracked) {
+                $entry = @($current | Where-Object { $_.IPAddress -eq $ip })
+                if ($entry | Where-Object { $_.PrefixLength -ne 24 -or [string]$_.PrefixOrigin -ne 'Manual' }) {
+                    throw "Probe address $ip has changed since configuration; rollback record retained for manual review."
+                }
+            }
+            foreach ($ip in ($tracked | Select-Object -Unique)) {
+                if ($current | Where-Object { $_.IPAddress -eq $ip }) {
+                    Remove-NetIPAddress -InterfaceIndex $Adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -Confirm:$false -ErrorAction Stop
+                    Add-Result "Removed recorded probe IPv4 address: $ip/24"
+                }
+            }
+            if ($state.OriginalDhcp -eq 'Enabled') {
+                Set-NetIPInterface -InterfaceIndex $Adapter.ifIndex -AddressFamily IPv4 -Dhcp Enabled -ErrorAction Stop
+                Add-Result 'Restored original DHCP setting: Enabled (lease acquisition may take a few seconds).'
+            }
+            Remove-Item -LiteralPath $path -Force
+            Add-Result 'Rollback complete; pre-existing static IPv4 addresses were not removed.'
+            return
+        }
+
+        if (Test-Path -LiteralPath $path) {
+            Read-ProbeState -Path $path -Adapter $Adapter | Out-Null
+            Add-Result 'An existing rollback record was preserved; run -RemoveStaticIPs before configuring again.'
+            return
+        }
+        $missing = @($desired | Where-Object { $_ -notin @($current.IPAddress) })
+        if ($missing.Count -eq 0) {
+            Add-Result 'All probe IPv4 addresses already exist; no addresses or DHCP settings were changed.'
+            return
+        }
+        $ipInterface = Get-NetIPInterface -InterfaceIndex $Adapter.ifIndex -AddressFamily IPv4 -ErrorAction Stop |
+            Select-Object -First 1
+        $dhcp = [string]$ipInterface.Dhcp
+        if ($dhcp -notin @('Enabled', 'Disabled')) { throw 'Cannot determine the original DHCP setting; configuration aborted.' }
+        if ($dhcp -eq 'Enabled' -and ($current | Where-Object { [string]$_.PrefixOrigin -eq 'Manual' })) {
+            throw 'This adapter mixes DHCP and manual IPv4 addresses; automatic probe configuration was skipped to preserve that setup.'
+        }
+        $state = [pscustomobject]@{
+            Schema = 1
+            InterfaceGuid = $id
+            OriginalDhcp = $dhcp
+            OriginalAddresses = @($current.IPAddress)
+            AddedAddresses = @()
+            PendingAddress = $null
+        }
+        Save-ProbeState -Path $path -State $state
+        foreach ($ip in $missing) {
+            # Persist the pending operation so an interrupted command remains reversible.
+            $state.PendingAddress = $ip
+            Save-ProbeState -Path $path -State $state
+            New-NetIPAddress -InterfaceIndex $Adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -PrefixLength 24 -SkipAsSource $false -ErrorAction Stop | Out-Null
+            $state.AddedAddresses = @($state.AddedAddresses) + $ip
+            $state.PendingAddress = $null
+            Save-ProbeState -Path $path -State $state
+            Add-Result "Added IPv4 address: $ip/24"
+        }
+        Add-Result "Rollback: re-run with -AdapterName '$($Adapter.Name)' -RemoveStaticIPs. Record: $path"
+        if ($dhcp -eq 'Enabled') {
+            Add-Result 'DHCP is temporarily disabled while probe addresses are in use; -RemoveStaticIPs restores it.'
+        }
+    } catch {
+        if (-not $Remove -and (Test-Path -LiteralPath $path)) {
+            Add-Result "Configuration incomplete; rollback record retained at $path. Re-run with -AdapterName '$($Adapter.Name)' -RemoveStaticIPs."
+        }
+        throw
+    } finally {
+        if ($locked) { $mutex.ReleaseMutex() }
+        $mutex.Dispose()
+    }
+}
+
 function Test-TcpPort {
     param(
         [string]$HostName,
@@ -68,41 +207,19 @@ try {
 
     Add-Result "Adapter: Name=$($adapter.Name); ifIndex=$($adapter.ifIndex); Status=$($adapter.Status); LinkSpeed=$($adapter.LinkSpeed)"
 
-    # Probe addresses shared by -ConfigureStaticIPs and -RemoveStaticIPs.
-    # 192.168.1.2 and 192.168.8.2 may fall inside the router DHCP pool: if the router leases
-    # the same address, the probe becomes unstable, so remove them once the diagnosis is done.
-    $desiredAddresses = @("192.168.68.2", "192.168.1.2", "192.168.8.2")
-
     if ($ConfigureStaticIPs -and $RemoveStaticIPs) {
         Add-Result "Static IP change skipped: -ConfigureStaticIPs and -RemoveStaticIPs are mutually exclusive."
     } elseif ($ConfigureStaticIPs) {
         if (-not $isAdmin) {
             Add-Result "Static IP configuration skipped: run PowerShell as Administrator."
         } else {
-            foreach ($ip in $desiredAddresses) {
-                $existing = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -ErrorAction SilentlyContinue
-                if ($null -eq $existing) {
-                    New-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -PrefixLength 24 -SkipAsSource $false | Out-Null
-                    Add-Result "Added IPv4 address: $ip/24"
-                } else {
-                    Add-Result "IPv4 address already present: $ip/$($existing.PrefixLength)"
-                }
-            }
-            Add-Result "Rollback: re-run this script with -RemoveStaticIPs to delete the probe addresses, or run: Remove-NetIPAddress -InterfaceIndex $($adapter.ifIndex) -IPAddress 192.168.68.2,192.168.1.2,192.168.8.2 -Confirm:`$false"
+            Invoke-ProbeAddressChange -Adapter $adapter
         }
     } elseif ($RemoveStaticIPs) {
         if (-not $isAdmin) {
             Add-Result "Static IP removal skipped: run PowerShell as Administrator."
         } else {
-            foreach ($ip in $desiredAddresses) {
-                $existing = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -ErrorAction SilentlyContinue
-                if ($null -ne $existing) {
-                    Remove-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress $ip -Confirm:$false
-                    Add-Result "Removed IPv4 address: $ip/24"
-                } else {
-                    Add-Result "IPv4 address not present: $ip"
-                }
-            }
+            Invoke-ProbeAddressChange -Adapter $adapter -Remove
         }
     }
 

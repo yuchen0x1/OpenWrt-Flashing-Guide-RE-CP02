@@ -92,14 +92,19 @@ scp /tmp/mtd0_Bootloader.bin /tmp/mtd2_Factory.bin <YOUR_PC_USER>@<YOUR_PC_IP>:/
 
 如果没有 SCP，可以用 stock 固件自带的文件服务、TFTP、Samba 或其他方式取回。总之不要只放在路由器里。
 
-可选：备份 eMMC 前部数据。这个文件比较大，确认目标目录空间足够再执行：
+可选：备份 eMMC 前部数据（约 1.2 GiB）。必须先确认 `/dev/mmcblk0p4` 是可写的数据分区，且它的起始扇区不早于 `2508800`，避免备份文件落入正在读取的源范围；不能确认时不要使用此示例，改用独立外部存储。确认目标文件不存在、空间足够，再执行：
 
 ```sh
-# 如果 /mnt/mmcblk0p4 不存在，先挂载可写分区
-mount /dev/mmcblk0p4 /mnt/mmcblk0p4 || true
-ls /mnt/mmcblk0p4
-dd if=/dev/mmcblk0 of=/mnt/mmcblk0p4/backup.img bs=512 count=2508800
+# 先用 fdisk -l /dev/mmcblk0 核对分区起始扇区；不要忽略挂载失败
+mkdir -p /mnt/mmcblk0p4
+mount /dev/mmcblk0p4 /mnt/mmcblk0p4 &&
+df -h /mnt/mmcblk0p4 &&
+test ! -e /mnt/mmcblk0p4/backup.img &&
+dd if=/dev/mmcblk0 of=/mnt/mmcblk0p4/backup.img bs=512 count=2508800 &&
+sync
 ```
+
+如果挂载提示已挂载，请先用 `mount` 核对其实际挂载点，再单独确认剩余步骤；不要把 `mount` 的失败改成忽略后继续。完成后把备份取回电脑，并检查文件大小为 `1284505600` 字节。
 
 ## 5. 上传第三方 U-Boot
 
@@ -129,11 +134,16 @@ cd /tmp
 tftp -g -r u-boot-mt7621-68.bin 192.168.68.2
 ```
 
-下载后检查文件大小，确认不是 0 字节：
+下载后检查文件大小，并在路由器上再次核对 SHA256，避免传输错误后直接写入 Bootloader：
 
 ```sh
 ls -lh /tmp/u-boot-mt7621-68.bin
+printf '%s  %s\n' \
+  805e6fca1cb553c19a1f227b506d2dcbc2dc1a9ed95c3f14373fae42dd4a203b \
+  /tmp/u-boot-mt7621-68.bin | sha256sum -c -
 ```
+
+只有使用本仓库清单对应的 U-Boot 且输出 `OK` 才继续。使用其他构建时，必须先从可信发布者取得对应校验值，不能仅凭文件同名或非零大小判断可刷写。
 
 ## 6. 写入第三方 U-Boot
 

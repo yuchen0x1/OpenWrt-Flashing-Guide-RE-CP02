@@ -59,6 +59,7 @@
 │   ├── app.js                        ← 交互：弹窗、搜索、进度、主题
 │   ├── guide-tools.js                ← 请求缓存、章节索引、SHA256 数据逻辑
 │   ├── firmware-check.js             ← 浏览器本地文件校验交互
+│   ├── project-update.js             ← 项目新版本检查与发布入口
 │   ├── markdown.js                   ← Markdown 渲染器（纯函数，可单测）
 │   ├── styles.css
 │   └── assets/                       ← 站点图片资源
@@ -66,6 +67,7 @@
 │   ├── README.md                     ← 固件文件用途说明
 │   └── SHA256SUMS.txt                ← 固件与 Xray 文件的 SHA256 清单（共 8 项）
 ├── ota/                              ← 自有固件更新源（manifest + 发布说明）
+├── project-version.json              ← 项目版本提示清单，与固件版本独立
 ├── scripts/
 │   ├── ota-check.sh                  ← 路由器端固件更新检测（自有更新源，带运行锁）
 │   ├── router-post-flash-cleanup.sh  ← 刷机后去无用功能清理
@@ -79,10 +81,15 @@
 │   ├── check-site-interaction.js     ← 阅读站点交互回归（headless 浏览器）
 │   ├── check-passwall-node-list-enhance.js ← PassWall 补丁行为回归测试
 │   ├── check-auto-update.js          ← 更新清单、版本、重试与完整性回归
+│   ├── check-project-update.js       ← 项目版本检测、网络失败与安全链接回归
+│   ├── check-release.js              ← 发布正文与按标签检查回归
+│   ├── check-status-panel.js         ← 状态面板吞吐采样回归
+│   ├── check-net-diagnose.ps1        ← Windows 网卡配置与撤销隔离回归
 │   ├── build-release-metadata.js     ← 标签发布时生成 OTA 审计快照
 │   └── get-wan6-ip.sh                ← OpenWrt 上读取 wan6 IPv6 地址
 ├── .github/workflows/checks.yml      ← 只读 CI：语法、一致性、回归、站点冒烟
 ├── .github/workflows/release.yml     ← vMAJOR.MINOR.PATCH 标签构建与 Release
+├── .github/workflows/codeql.yml      ← JavaScript 扩展安全扫描
 ├── luci/
 │   ├── 05_v2raya.js                  ← LuCI 总览页 v2rayA 快捷入口示例
 │   └── passwall-node-list-enhance/   ← PassWall 节点测速排序与筛选补丁
@@ -313,13 +320,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\router-net-diagnose.ps1 -Adap
 | --- | --- | --- |
 | `-AdapterName` | 空 | 指定有线网卡名称；为空时脚本自动选择处于 Up 状态且不像虚拟 / WiFi / VPN 的网卡 |
 | `-ResultPath` | `.\router-net-diagnose-result.txt` | 诊断结果输出路径 |
-| `-ConfigureStaticIPs` | 关闭 | 使用管理员权限时，为目标网卡添加 `192.168.68.2`、`192.168.1.2`、`192.168.8.2` 三个 `/24` IPv4 地址 |
-| `-RemoveStaticIPs` | 关闭 | 与 `-ConfigureStaticIPs` 互斥；删除该脚本此前添加的上述探测静态 IPv4 地址（回滚用） |
+| `-ConfigureStaticIPs` | 关闭 | 使用管理员权限时，为目标网卡补充三个探测用 `/24` 地址，并记录本次新增地址与原 DHCP 状态；混用 DHCP 和手动地址时保守拒绝自动修改 |
+| `-RemoveStaticIPs` | 关闭 | 与 `-ConfigureStaticIPs` 互斥；按匹配记录仅删除本次新增地址，并恢复原先启用的 DHCP；无记录时不删除 |
 | `-TcpTimeoutMs` | `1000` | TCP 端口探测超时，单位毫秒 |
 
 **脚本会检查**：是否管理员权限；目标网卡名称、接口索引、状态与链路速率；当前有线 IPv4 地址；`192.168.68.1` 的 80 / 22 / 23 端口；`192.168.1.1` 的 80 / 22 端口；`192.168.8.1` 的 80 / 22 / 2017 端口；当前 ARP 表。
 
-> 放心：默认情况下脚本**不会修改你的网卡**，只有显式传入 `-ConfigureStaticIPs` 且以管理员权限运行时，才会添加上述静态 IPv4 地址。
+> 默认仅诊断。以管理员权限显式添加探测地址会临时禁用 DHCP；用同一 Windows 用户、同一网卡运行 `-RemoveStaticIPs` 可恢复。回滚记录位于当前用户 LocalAppData 下的 `OpenWrt-Flashing-Guide-RE-CP02/net-diagnose/`，按网卡 GUID 隔离。旧版未保存记录的地址不会被新版自动删除，需要人工核对；撤销完成前不要清理该记录。
 
 ### 工具二：OpenWrt 上查询 wan6 IPv6
 
@@ -356,6 +363,8 @@ http://<路由器地址>:2017/
 ### 工具四：自有固件更新源（OTA 检测）
 
 以本仓库 `ota/manifest.json` 为版本发布点：路由器上的检测脚本比对当前固件与更新源最新版本（当前收录 ImmortalWrt 24.10.6（推荐/latest）与 23.05.7，另收录 25.12.2 新大版本分支供手动尝鲜、不参与自动检测提示，SHA256 均取自官方 sha256sums），支持只读检测、下载校验、人工确认刷写三档，内置设备型号与发行版门禁。更新源默认 GitHub raw，网络不通时用 `--source gitee` 切备用源（更新中心页面顶部也可切换并记住选择）。网页端（`luci-app-ota-check`）的部署步骤见 [luci-app-ota-check/README.md](luci-app-ota-check/README.md)，命令行用法与发布流程见 [ota/README.md](ota/README.md)。
+
+**项目资料与工具更新**使用独立的 `project-version.json`：从 v1.5.2 起，阅读站点会检查主分支上的项目版本，发现新版时显示发布链接，断网后可手动重试。固件 OTA 的原有主分支地址与版本语义保持不变，不会把项目 v1.5.2 当作固件刷写。未安装检测器的历史离线副本及旧 LuCI 页面无法追溯添加通知；这些用户应先手动更新，或在 GitHub 的 Watch → Custom 中订阅 Releases。完整边界见 [自动更新与发布](docs/AUTO_UPDATE.md)。
 
 ```sh
 # 路由器上安装后运行
@@ -434,7 +443,7 @@ ssh root@<路由器IP> 'sh /tmp/router-lan-rescue.sh --apply'     # 确认后执
 没有 Docker 部署、后端 API 或项目专用 CLI。README 中的命令都是文档阅读、校验、网络诊断或 OpenWrt 配置命令。
 
 **Q：Windows 诊断脚本会修改我的网卡吗？**
-默认不会。只有传入 `-ConfigureStaticIPs` 且 PowerShell 以管理员权限运行时，脚本才会添加常见静态 IPv4 地址。
+默认不会。显式以管理员权限传入 `-ConfigureStaticIPs` 才会添加探测地址，并临时禁用 DHCP；之后用同一用户、同一网卡执行 `-RemoveStaticIPs`，按保存的记录撤销并恢复原 DHCP 状态。
 
 ---
 

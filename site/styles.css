@@ -196,7 +196,9 @@ body.rail-pinned .rail-label { opacity:1; transform:none; }
 body.rail-pinned .rail-status { opacity:1; }
 .rail-status b { width:6px; height:6px; border-radius:50%; background:var(--lime); box-shadow:0 0 0 4px rgba(200,240,49,.1); }
 
-.topbar { left:var(--rail-width); width:calc(100% - var(--rail-width)); background:rgba(13,15,18,.82); border-bottom-color:rgba(230,236,239,.11); }
+.topbar { left:var(--rail-width); width:100%; background:rgba(13,15,18,.82); border-bottom-color:rgba(230,236,239,.11); }
+.topbar .brand,.top-actions { flex-shrink:0; }
+.topnav,.search-button { white-space:nowrap; }
 .breadcrumb { display:flex; align-items:center; gap:9px; margin-left:26px; color:#718087; font:10px var(--mono); letter-spacing:.09em; white-space:nowrap; }
 .breadcrumb b { color:#4d595f; font-weight:400; }
 .breadcrumb strong { color:var(--text); font-weight:500; letter-spacing:0; }
@@ -319,6 +321,8 @@ body.rail-pinned .rail-status { opacity:1; }
 #firmware-result[data-state="mismatch"],#firmware-result[data-state="error"] { border-color:var(--danger); color:var(--text); }
 .search-result small { display:block; color:var(--muted); margin-bottom:4px; }
 .doc-content .search-target { outline:2px solid var(--cyan); outline-offset:6px; scroll-margin-top:20px; }
-@media(max-width:760px) { .integrity-panel { grid-template-columns:1fr; gap:16px; padding:20px; } .integrity-intro h2 { font-size:21px; } }
-.locale-toggle { min-height: 34px; border: 1px solid var(--line, rgba(255,255,255,.16)); border-radius: 9px; padding: 0 8px; color: inherit; background: rgba(8,16,22,.78); font: inherit; }
-@media (max-width:980px) { .breadcrumb { display:none; } }
+/* Leave room for the navigation rail and long file names at tablet widths. */
+@media(max-width:900px) { .integrity-panel { grid-template-columns:1fr; gap:16px; padding:20px; } .integrity-intro h2 { font-size:21px; } }
+.locale-toggle { min-height: 34px; border: 1px solid var(--line, rgba(255,255,255,.16)); border-radius: 9px; padding: 0 8px; color: inherit; background: var(--panel-strong); font: inherit; }
+@media (max-width:1180px) { .breadcrumb { display:none; } }
+@media (max-width:980px) { .topnav { display:none; } }

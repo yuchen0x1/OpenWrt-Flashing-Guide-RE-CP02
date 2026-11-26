@@ -13,6 +13,37 @@
 OUT="${OTA_UI_OUT:-/tmp/ota-check-ui.out}"
 LOCK="${OTA_UI_LOCK:-/tmp/ota-check-ui.lock}"
 OTA_CHECK_BIN="${OTA_CHECK_BIN:-/usr/bin/ota-check}"
+umask 077
+
+# rpcd callers can invoke this file without going through the page buttons.
+# Keep firmware flashing and arbitrary sysupgrade arguments out of this API.
+_expect=""
+_source_seen=0
+_version_seen=0
+_download_seen=0
+for _arg in "$@"; do
+  case "$_expect" in
+    source)
+      case "$_arg" in github|gitee) ;; *) echo "无效更新源" >&2; exit 2 ;; esac
+      _expect=""
+      continue
+      ;;
+    version)
+      printf '%s\n' "$_arg" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+        echo "无效固件版本" >&2; exit 2;
+      }
+      _expect=""
+      continue
+      ;;
+  esac
+  case "$_arg" in
+    --source) [ "$_source_seen" = 0 ] || exit 2; _source_seen=1; _expect=source ;;
+    --version) [ "$_version_seen" = 0 ] || exit 2; _version_seen=1; _expect=version ;;
+    --download) [ "$_download_seen" = 0 ] || exit 2; _download_seen=1 ;;
+    *) echo "网页接口不支持参数: $_arg" >&2; exit 2 ;;
+  esac
+done
+[ -z "$_expect" ] || { echo "参数缺少取值" >&2; exit 2; }
 
 lock_active() {
   [ -f "$LOCK/pid" ] || return 1
@@ -26,25 +57,35 @@ lock_active() {
 
 acquire_lock() {
   if [ -e "$LOCK" ]; then
-    if lock_active; then
+    [ -d "$LOCK" ] && [ ! -L "$LOCK" ] || {
+      echo "后台任务锁路径不安全: $LOCK" >&2; return 2;
+    }
+    # An owner that has not published its PID yet must still keep its lock.
+    if [ ! -s "$LOCK/pid" ] || lock_active; then
       echo "OTA_BUSY"
       return 1
     fi
-    rm -rf "$LOCK"
+    # Serialize stale-lock recovery inside the existing lock, then recheck:
+    # another contender may already have replaced the stale directory.
+    mkdir "$LOCK/reclaim" 2>/dev/null || { echo "OTA_BUSY"; return 1; }
+    if [ ! -s "$LOCK/pid" ] || lock_active; then
+      rmdir "$LOCK/reclaim" 2>/dev/null
+      echo "OTA_BUSY"
+      return 1
+    fi
+    rm -f "$LOCK/pid"
+    rmdir "$LOCK/reclaim" 2>/dev/null
+    rmdir "$LOCK" 2>/dev/null || { echo "OTA_BUSY"; return 1; }
   fi
 
   # mkdir is atomic on the router filesystem; unlike a file existence check,
   # this closes the TOCTOU window when two LuCI requests arrive together.
   if ! mkdir "$LOCK" 2>/dev/null; then
-    if lock_active; then
-      echo "OTA_BUSY"
-      return 1
-    fi
-    rm -rf "$LOCK"
-    mkdir "$LOCK" 2>/dev/null || {
-      echo "无法创建后台任务锁: $LOCK" >&2
-      return 2
-    }
+    # The winner owns its newly created directory even before publishing PID.
+    # Never remove that directory after losing the atomic mkdir race.
+    [ -d "$LOCK" ] && { echo "OTA_BUSY"; return 1; }
+    echo "无法创建后台任务锁: $LOCK" >&2
+    return 2
   fi
   printf '%s\n' "$$" > "$LOCK/pid"
   return 0
@@ -59,7 +100,16 @@ if [ "$_lock_rc" -ne 0 ]; then
   exit "$_lock_rc"
 fi
 
-: > "$OUT"
-( "$OTA_CHECK_BIN" "$@" > "$OUT" 2>&1; _rc=$?; echo "__OTA_DONE_$_rc__" >> "$OUT"; rm -rf "$LOCK" ) >/dev/null 2>&1 &
-printf '%s\n' "$!" > "$LOCK/pid" 2>/dev/null || :
-echo "已启动后台检测"
+# Remove a pre-existing symlink instead of following it as root.
+rm -f "$OUT" || { rm -rf "$LOCK"; exit 2; }
+# Open once with noclobber, then inherit the descriptor. A local process cannot
+# redirect root's later writes by replacing the public polling path with a link.
+set -C
+if ! {
+  ( "$OTA_CHECK_BIN" "$@" >&3 2>&1; _rc=$?; printf '__OTA_DONE_%s__\n' "$_rc" >&3; rm -rf "$LOCK" ) >/dev/null 2>&1 &
+  printf '%s\n' "$!" >| "$LOCK/pid" 2>/dev/null || :
+  echo "已启动后台检测"
+} 3> "$OUT"; then
+  rm -rf "$LOCK"
+  exit 2
+fi

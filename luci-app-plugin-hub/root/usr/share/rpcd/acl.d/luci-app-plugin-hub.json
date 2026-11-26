@@ -4,11 +4,10 @@
 		"read": {
 			"ubus": {
 				"service": [ "list" ],
-				"file": [ "exec" ]
+				"file": [ "list" ]
 			},
 			"file": {
-				"/etc/init.d": [ "list" ],
-				"/etc/init.d/*": [ "exec" ]
+				"/etc/init.d": [ "list" ]
 			}
 		},
 		"write": {
@@ -16,7 +15,36 @@
 				"file": [ "exec" ]
 			},
 			"file": {
-				"/etc/init.d/*": [ "exec" ]
+				"/etc/init.d/transmission start": [ "exec" ],
+				"/etc/init.d/transmission stop": [ "exec" ],
+				"/etc/init.d/transmission restart": [ "exec" ],
+				"/etc/init.d/filebrowser start": [ "exec" ],
+				"/etc/init.d/filebrowser stop": [ "exec" ],
+				"/etc/init.d/filebrowser restart": [ "exec" ],
+				"/etc/init.d/samba4 start": [ "exec" ],
+				"/etc/init.d/samba4 stop": [ "exec" ],
+				"/etc/init.d/samba4 restart": [ "exec" ],
+				"/etc/init.d/minidlna start": [ "exec" ],
+				"/etc/init.d/minidlna stop": [ "exec" ],
+				"/etc/init.d/minidlna restart": [ "exec" ],
+				"/etc/init.d/adblock-fast start": [ "exec" ],
+				"/etc/init.d/adblock-fast stop": [ "exec" ],
+				"/etc/init.d/adblock-fast restart": [ "exec" ],
+				"/etc/init.d/nlbwmon start": [ "exec" ],
+				"/etc/init.d/nlbwmon stop": [ "exec" ],
+				"/etc/init.d/nlbwmon restart": [ "exec" ],
+				"/etc/init.d/ttyd start": [ "exec" ],
+				"/etc/init.d/ttyd stop": [ "exec" ],
+				"/etc/init.d/ttyd restart": [ "exec" ],
+				"/etc/init.d/miniupnpd start": [ "exec" ],
+				"/etc/init.d/miniupnpd stop": [ "exec" ],
+				"/etc/init.d/miniupnpd restart": [ "exec" ],
+				"/etc/init.d/vlmcsd start": [ "exec" ],
+				"/etc/init.d/vlmcsd stop": [ "exec" ],
+				"/etc/init.d/vlmcsd restart": [ "exec" ],
+				"/etc/init.d/wechatpush start": [ "exec" ],
+				"/etc/init.d/wechatpush stop": [ "exec" ],
+				"/etc/init.d/wechatpush restart": [ "exec" ]
 			}
 		}
 	}

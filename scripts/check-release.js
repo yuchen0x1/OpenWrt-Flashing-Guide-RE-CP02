@@ -5,10 +5,16 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { extractReleaseNotes } = require('./build-release-notes');
-const { parseOfficialDownloadUrl } = require('./firmware-url');
+const { hasOfficialDownloadHost, parseOfficialDownloadUrl } = require('./firmware-url');
 
 const officialBase = 'https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/';
 const officialFile = 'openwrt-25.12.6-ramips-mt7621-jdcloud_re-cp-02-squashfs-sysupgrade.bin';
+assert.equal(hasOfficialDownloadHost(officialBase + officialFile), true);
+for (const url of [
+  officialBase.replace('downloads.openwrt.org', 'downloads.openwrt.org.evil.example') + officialFile,
+  'https://evil.example/path/' + officialBase + officialFile,
+  'not a URL'
+]) assert.equal(hasOfficialDownloadHost(url), false);
 assert.deepEqual(parseOfficialDownloadUrl(officialBase + officialFile), { version: '25.12.6', kind: 'squashfs-sysupgrade' });
 assert.equal(parseOfficialDownloadUrl(officialBase + officialFile.replace('squashfs-sysupgrade', 'initramfs-kernel')).kind, 'initramfs-kernel');
 for (const url of [

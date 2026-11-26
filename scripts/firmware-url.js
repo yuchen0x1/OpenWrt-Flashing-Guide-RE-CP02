@@ -1,5 +1,13 @@
 'use strict';
 
+function hasOfficialDownloadHost(value) {
+  try {
+    return new URL(value).hostname === 'downloads.openwrt.org';
+  } catch {
+    return false;
+  }
+}
+
 function parseOfficialDownloadUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.hostname !== 'downloads.openwrt.org'
@@ -19,4 +27,4 @@ function parseOfficialDownloadUrl(value) {
   return { version, kind };
 }
 
-module.exports = { parseOfficialDownloadUrl };
+module.exports = { hasOfficialDownloadHost, parseOfficialDownloadUrl };

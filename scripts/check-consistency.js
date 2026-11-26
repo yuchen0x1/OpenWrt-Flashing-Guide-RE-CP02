@@ -23,7 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseOfficialDownloadUrl } = require('./firmware-url');
+const { hasOfficialDownloadHost, parseOfficialDownloadUrl } = require('./firmware-url');
 
 const root = path.resolve(__dirname, '..');
 const verbose = process.argv.includes('--verbose');
@@ -148,7 +148,7 @@ assertHash('site/index.html', read('site/index.html'), shaUp, 'sysupgrade');
 const siteHtml = read('site/index.html');
 const downloadLinks = [];
 const siteLinks = [...siteHtml.matchAll(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map(match => match[1] || match[2] || '');
-for (const href of siteLinks.filter(value => value.includes('downloads.openwrt.org'))) {
+for (const href of siteLinks.filter(hasOfficialDownloadHost)) {
   try {
     downloadLinks.push(parseOfficialDownloadUrl(href).version);
   } catch (error) {

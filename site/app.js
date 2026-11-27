@@ -412,6 +412,10 @@ if ('IntersectionObserver' in window) {
     });
   }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
   revealTargets.forEach(target => revealObserver.observe(target));
+  window.setTimeout(() => {
+    revealTargets.forEach(target => target.classList.add('is-visible'));
+    revealObserver.disconnect();
+  }, 1500);
 } else {
   revealTargets.forEach(target => target.classList.add('is-visible'));
 }

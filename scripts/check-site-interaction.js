@@ -27,7 +27,7 @@ const fs = require('fs');
 const path = require('path');
 
 const URL_BASE = process.argv[2] || 'http://127.0.0.1:18793/site/';
-const PORT = Number(process.env.SITE_TEST_CDP_PORT || 9231);
+const PORT = Number(process.env.SITE_TEST_CDP_PORT ?? 0);
 const OVERALL_TIMEOUT = Number(process.env.SITE_TEST_TIMEOUT || 60000);
 
 const BROWSER_CANDIDATES = [
@@ -53,14 +53,71 @@ function findBrowser() {
   return null;
 }
 
+let cdpPort = PORT;
+
+function stopBrowserProcesses(child, userDataDir) {
+  let failure = null;
+  if (process.platform === 'win32') {
+    const command = "$ErrorActionPreference='Stop'; "
+      + "$needle='--user-data-dir='+$env:SITE_TEST_USER_DATA_DIR; "
+      + "$targets=@(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { "
+      + "$_.CommandLine -and $_.CommandLine.IndexOf($needle,[System.StringComparison]::OrdinalIgnoreCase) -ge 0 "
+      + "}); foreach($target in $targets) { & taskkill.exe /PID $target.ProcessId /T /F | Out-Null }";
+    const result = require('child_process').spawnSync('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command', command
+    ], {
+      env: { ...process.env, SITE_TEST_USER_DATA_DIR: userDataDir },
+      encoding: 'utf8',
+      timeout: 5000
+    });
+    if (result.error || result.status !== 0) {
+      failure = new Error('无法终止本轮浏览器进程：' + (result.error?.message || result.stderr || result.status));
+    }
+  }
+  if (child.exitCode === null) {
+    try { child.kill(); } catch {}
+  }
+  if (failure) throw failure;
+}
+
+function hasBrowserProcesses(userDataDir) {
+  if (process.platform !== 'win32') return false;
+  const result = require('child_process').spawnSync('powershell.exe', [
+    '-NoProfile', '-NonInteractive', '-Command',
+    "$ErrorActionPreference='Stop'; $needle='--user-data-dir='+$env:SITE_TEST_USER_DATA_DIR; "
+      + "@(Get-CimInstance Win32_Process | Where-Object { "
+      + "$_.CommandLine -and $_.CommandLine.IndexOf($needle,[System.StringComparison]::OrdinalIgnoreCase) -ge 0 "
+      + "}).Count"
+  ], {
+    env: { ...process.env, SITE_TEST_USER_DATA_DIR: userDataDir },
+    encoding: 'utf8',
+    timeout: 5000
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error('无法检查本轮浏览器进程：' + (result.error?.message || result.stderr || result.status));
+  }
+  const count = Number(String(result.stdout || '').trim());
+  if (!Number.isInteger(count) || count < 0) throw new Error('本轮浏览器进程检查返回无效结果');
+  return count > 0;
+}
+
 function getJson(pathname) {
   return new Promise((resolve, reject) => {
-    http.get({ host: '127.0.0.1', port: PORT, path: pathname }, res => {
+    http.get({ host: '127.0.0.1', port: cdpPort, path: pathname }, res => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
     }).on('error', reject);
   });
+}
+
+function readDevToolsPort(userDataDir) {
+  try {
+    const value = Number(fs.readFileSync(path.join(userDataDir, 'DevToolsActivePort'), 'utf8').split(/\r?\n/, 1)[0]);
+    return Number.isInteger(value) && value > 0 && value <= 65535 ? value : 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function main() {
@@ -86,14 +143,18 @@ async function main() {
     '--remote-debugging-port=' + PORT, '--user-data-dir=' + userDataDir, 'about:blank'
   ], { stdio: 'ignore' });
   let childExited = false;
+  let childStatus = null;
   const exited = new Promise(resolve => {
-    const finish = () => { childExited = true; resolve(); };
-    child.once('exit', finish);
-    child.once('error', finish);
+    const finish = status => { childExited = true; childStatus = status; resolve(); };
+    child.once('exit', (code, signal) => finish({ code, signal }));
+    child.once('error', error => finish({ error: error.message }));
   });
   const pending = new Map();
   let ws;
   let timedOut = false;
+  let wsClose = null;
+  let failure = null;
+  let cleanupFailure = null;
   function rejectPending(error) {
     for (const request of pending.values()) request.reject(error);
     pending.clear();
@@ -107,13 +168,17 @@ async function main() {
 
   try {
     let targets = null;
+    let connectionError = null;
     for (let i = 0; i < 60; i++) {
       if (timedOut) throw new Error('整体超时 ' + OVERALL_TIMEOUT + 'ms');
-      try { targets = await getJson('/json/list'); if (targets && targets.length) break; } catch {}
+      if (PORT === 0) cdpPort = readDevToolsPort(userDataDir);
+      if (!cdpPort) { await sleep(250); continue; }
+      try { targets = await getJson('/json/list'); if (targets && targets.length) break; } catch (error) { connectionError = error.message; }
       await sleep(250);
     }
     if (!targets || !targets.length) {
-      throw new Error('无法连接浏览器调试端口 ' + PORT);
+      throw new Error('无法连接浏览器调试端口 ' + (cdpPort || '未分配')
+        + '; browser=' + JSON.stringify(childStatus) + '; connection=' + JSON.stringify(connectionError));
     }
 
     const page = targets.find(t => t.type === 'page') || targets[0];
@@ -127,7 +192,11 @@ async function main() {
       if (msg.method === 'Runtime.exceptionThrown') pageErrors.push(msg.params.exceptionDetails.text);
       if (msg.id && pending.has(msg.id)) { pending.get(msg.id).resolve(msg); pending.delete(msg.id); }
     };
-    ws.onclose = () => rejectPending(new Error('浏览器调试连接已关闭'));
+    ws.onclose = event => {
+      wsClose = { code: event.code, reason: event.reason };
+      rejectPending(new Error('浏览器调试连接已关闭'
+        + (wsClose.code ? '（code=' + wsClose.code + (wsClose.reason ? ', reason=' + wsClose.reason : '') + '）' : '')));
+    };
 
     const send = (method, params) => new Promise((resolve, reject) => {
       if (timedOut) { reject(new Error('整体超时 ' + OVERALL_TIMEOUT + 'ms')); return; }
@@ -369,12 +438,22 @@ async function main() {
         check(locale + ' ' + width + ' 顶部控件不重叠、不截断且更新区不溢出', !!(r.value && r.value.within && r.value.separate && r.value.readable && r.value.updateFits), JSON.stringify(r.value));
       }
     }
+    await send('Page.navigate', { url: URL_BASE });
+    await sleep(1200);
     await evaluate(`SiteI18n.apply('zh-CN')`);
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }]
+    });
     for (const theme of ['light', 'dark']) {
-      await evaluate(`applyThemeMode('${theme}'); document.querySelector('.firmware-card.recommended').scrollIntoView({behavior:'instant',block:'center'})`);
-      await sleep(1200);
-      r = await evaluate(`(() => {
+      await evaluate(`(() => {
+        applyThemeMode('${theme}');
+        const card = document.querySelector('.firmware-card.recommended');
+        card.closest('.section')?.scrollIntoView({behavior:'instant',block:'center'});
+        card.scrollIntoView({behavior:'instant',block:'center'});
+      })()`);
+      await sleep(1500);
+      r = await evaluate(`(async () => {
         function rgba(value) {
           const parts = value.match(/[\\d.]+/g).map(Number);
           return [parts[0], parts[1], parts[2], parts[3] ?? 1];
@@ -395,15 +474,35 @@ async function main() {
           return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
         });
         let opacity = 1;
-        for (let element = document.querySelector('.hash-row code'); element; element = element.parentElement) opacity *= Number(getComputedStyle(element).opacity);
-        const rect = document.querySelector('.hash-row').getBoundingClientRect();
-        return {count: ratios.length, minimum: Math.min(...ratios), opacity, clip: {x: rect.left + scrollX, y: rect.top + scrollY, width: rect.width, height: rect.height, scale: 2}};
+        const opacityChain = [];
+        for (let element = document.querySelector('.hash-row code'); element; element = element.parentElement) {
+          const value = Number(getComputedStyle(element).opacity);
+          opacity *= value;
+          opacityChain.push({tag: element.tagName, id: element.id, className: String(element.className), opacity: value});
+        }
+        const card = document.querySelector('.firmware-card.recommended');
+        const section = card.closest('.section');
+        const rect = card.getBoundingClientRect();
+        const ioProbe = await new Promise(resolve => {
+          const observer = new IntersectionObserver(entries => {
+            observer.disconnect();
+            resolve(entries.map(entry => ({target: entry.target.className, isIntersecting: entry.isIntersecting, ratio: entry.intersectionRatio})));
+          }, {threshold: 0.12, rootMargin: '0px 0px -6% 0px'});
+          observer.observe(section);
+          observer.observe(card);
+          setTimeout(() => { observer.disconnect(); resolve('timeout'); }, 800);
+        });
+        return {
+          count: ratios.length,
+          minimum: Math.min(...ratios),
+          opacity,
+          opacityChain,
+          reveal: {card: card.classList.contains('is-visible'), section: section.classList.contains('is-visible')},
+          scroll: {y: scrollY, height: innerHeight, cardTop: rect.top, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, hasIntersectionObserver: 'IntersectionObserver' in window},
+          ioProbe
+        };
       })()`);
-      check(theme + ' SHA256 文本对比度至少 4.5:1' + (r.value ? '（' + r.value.minimum.toFixed(2) + ':1）' : ''), !!(r.value && r.value.count === 3 && r.value.minimum >= 4.5 && r.value.opacity >= 0.999), JSON.stringify(r.value));
-      if (r.value?.clip) {
-        const shot = await send('Page.captureScreenshot', { format: 'png', clip: r.value.clip });
-        if (shot.result?.data) fs.writeFileSync(path.join(outputDir, 'hash-row-' + theme + '.png'), Buffer.from(shot.result.data, 'base64'));
-      }
+      check(theme + ' SHA256 对比度达标且卡片动画后可见' + (r.value ? '（对比度 ' + r.value.minimum.toFixed(2) + ':1）' : ''), !!(r.value && r.value.count === 3 && r.value.minimum >= 4.5 && r.value.opacity >= 0.999 && r.value.reveal.card && r.value.reveal.section), JSON.stringify(r.value));
     }
     await evaluate(`applyThemeMode('light')`);
     for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['tablet', 820, 1180], ['dark', 1440, 1000]]) {
@@ -414,10 +513,10 @@ async function main() {
       r = await evaluate(`({ fits: document.documentElement.scrollWidth <= window.innerWidth, form: document.getElementById('firmware-check').getBoundingClientRect().width > 0, columns: getComputedStyle(document.querySelector('.integrity-panel')).gridTemplateColumns.split(' ').length })`);
       check(name + ' 视口没有横向溢出且校验表单可见', !!(r.value && r.value.fits && r.value.form), JSON.stringify(r.value));
       if (width <= 900) check(name + ' 校验面板使用单列避免拥挤', !!(r.value && r.value.columns === 1), JSON.stringify(r.value));
-      const shot = await send('Page.captureScreenshot', { format: 'png' });
-      if (shot.result && shot.result.data) fs.writeFileSync(path.join(outputDir, name + '.png'), Buffer.from(shot.result.data, 'base64'));
     }
     check('浏览器没有未处理脚本异常', pageErrors.length === 0, pageErrors.join('; '));
+  } catch (error) {
+    failure = error;
   } finally {
     clearTimeout(timer);
     if (ws?.readyState === WebSocket.OPEN) {
@@ -425,15 +524,35 @@ async function main() {
       await Promise.race([exited, sleep(1500)]);
     }
     try { ws?.close(); } catch {}
-    if (child.exitCode === null) {
-      try { child.kill(); } catch {}
+    let directorySafeToRemove = false;
+    try {
+      stopBrowserProcesses(child, userDataDir);
+      await Promise.race([exited, sleep(3000)]);
+      if (!childExited || hasBrowserProcesses(userDataDir)) {
+        stopBrowserProcesses(child, userDataDir);
+        await Promise.race([exited, sleep(2000)]);
+      }
+      directorySafeToRemove = childExited && !hasBrowserProcesses(userDataDir);
+      if (!directorySafeToRemove) {
+        cleanupFailure = new Error('无法确认本次测试浏览器已退出，保留隔离目录：' + userDataDir);
+      }
+    } catch (error) {
+      cleanupFailure = new Error('测试浏览器清理状态无法确认，保留隔离目录：' + userDataDir + '; ' + error.message);
     }
-    await Promise.race([exited, sleep(3000)]);
-    if (!childExited) throw new Error('无法确认本次测试浏览器已退出，保留隔离目录：' + userDataDir);
-    if (path.dirname(userDataDir) === outputDir && path.basename(userDataDir) === 'browser-' + process.pid) {
-      await fs.promises.rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+    if (directorySafeToRemove && path.dirname(userDataDir) === outputDir && path.basename(userDataDir) === 'browser-' + process.pid) {
+      try {
+        await fs.promises.rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+      } catch (error) {
+        cleanupFailure = cleanupFailure || new Error('测试浏览器隔离目录清理失败：' + error.message);
+      }
     }
   }
+
+  if (failure) {
+    if (cleanupFailure) failure.message += '; ' + cleanupFailure.message;
+    throw failure;
+  }
+  if (cleanupFailure) throw cleanupFailure;
 
   const failed = results.filter(item => !item.ok).length;
   console.log('\nSUMMARY pass=' + (results.length - failed) + ' fail=' + failed);

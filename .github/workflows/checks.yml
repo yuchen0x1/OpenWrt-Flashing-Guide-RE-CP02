@@ -228,5 +228,5 @@ jobs:
           server=$!
           trap 'kill $server' EXIT
           sleep 2
-          SITE_TEST_BROWSER=/usr/bin/google-chrome \
+          SITE_TEST_BROWSER=/usr/bin/google-chrome SITE_TEST_CDP_PORT=0 \
             node scripts/check-site-interaction.js "http://127.0.0.1:18793/site/"

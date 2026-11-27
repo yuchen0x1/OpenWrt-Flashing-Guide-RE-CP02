@@ -18,9 +18,9 @@
 
 <!-- github-release:start -->
 
-**[v1.5.2](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.2)** · 2026-11-26
+**[v1.5.7](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases/tag/v1.5.7)** · 2026-11-27
 
-本次更新修复阅读站点、LuCI 权限、OTA 检测与 eMMC 迁移中的实际缺陷，补齐项目版本提示和发布检查，并让浏览器回归自动回收本轮缓存。升级 LuCI 组件时请同步更新视图、菜单和 ACL；本版本不包含路由器固件镜像，也不会自动刷写设备。
+本次更新修复官方下载链接检查的误判边界和 OTA 残留锁并发恢复问题，并让浏览器交互回归在不同运行环境下更稳定、易诊断。项目版本独立于路由器固件版本；本次不修改设备配置，也不会自动刷写固件。
 
 [全部发行记录](https://github.com/yuchen0x1/OpenWrt-Flashing-Guide-RE-CP02/releases)
 
